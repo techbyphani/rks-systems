@@ -1,0 +1,84 @@
+/* Payment Components Styles */
+
+.razorpay-payment-modal .ant-modal-content {
+  border-radius: 12px;
+}
+
+.payment-amount-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.payment-amount-card .ant-card-body {
+  padding: 24px;
+}
+
+.payment-amount-card .ant-typography {
+  color: white !important;
+}
+
+.payment-method-selector {
+  width: 100%;
+}
+
+.payment-method-card {
+  transition: all 0.3s ease;
+  border: 2px solid #e8e8e8;
+}
+
+.payment-method-card:hover:not(.disabled) {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.payment-method-card.selected {
+  border-color: #1890ff;
+  background-color: #e6f7ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+.payment-method-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.payment-method-icon {
+  font-size: 24px;
+  margin-right: 12px;
+}
+
+/* Transaction History Styles */
+.transaction-history-item {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+}
+
+.transaction-history-item:hover {
+  background-color: #fafafa;
+}
+
+.transaction-history-item:last-child {
+  border-bottom: none;
+}
+
+/* Payment Status Badge */
+.payment-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Razorpay Brand Colors */
+.razorpay-blue {
+  color: #0F4C75;
+}
+
+.razorpay-green {
+  color: #00D9FF;
+}
+
