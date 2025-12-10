@@ -1,0 +1,76 @@
+/* Professional Page Transition - Industry Standard Implementation */
+
+.page-transition-wrapper {
+  width: 100%;
+  height: 100%;
+  /* Material Design standard: 250ms with standard easing */
+  animation: fadeInSlide 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* Optimize for performance */
+  will-change: opacity, transform;
+  /* Ensure smooth rendering */
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Accessibility: Respect user's motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition-wrapper {
+    animation: fadeInOnly 150ms ease-out;
+  }
+  
+  @keyframes fadeInOnly {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* Performance optimization: Remove will-change after animation */
+.page-transition-wrapper {
+  animation-fill-mode: both;
+}
+
+/* Ensure child elements don't interfere with animation */
+.page-transition-wrapper > * {
+  position: relative;
+}
+
+/* Optional: Subtle scale for premium feel (can be enabled if desired) */
+.page-transition-wrapper.premium {
+  animation: fadeInSlideScale 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeInSlideScale {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* High-performance mode for low-end devices */
+@media (prefers-reduced-motion: no-preference) {
+  @media (max-width: 768px) {
+    .page-transition-wrapper {
+      /* Slightly faster on mobile for better perceived performance */
+      animation-duration: 200ms;
+    }
+  }
+}

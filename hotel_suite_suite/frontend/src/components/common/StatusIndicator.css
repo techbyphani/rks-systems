@@ -1,0 +1,19 @@
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.status-text {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.status-indicator.size-small .status-text {
+  font-size: var(--font-size-xs);
+}
+
+.status-indicator.size-large .status-text {
+  font-size: var(--font-size-md);
+}
+
