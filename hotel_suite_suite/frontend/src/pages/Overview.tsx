@@ -1,6 +1,4 @@
-import { Card, Col, Row, Statistic, Typography, Tag, Space, Progress, Button } from 'antd'
-import { useNavigate } from 'react-router-dom'
-import { MODULES } from '@/config/modules'
+import { Card, Col, List, Row, Statistic, Typography, Tag, Space, Progress } from 'antd'
 import { useAppContext } from '@/context/AppContext'
 
 const { Title, Paragraph, Text } = Typography
@@ -12,9 +10,14 @@ const quickMetrics = [
   { label: 'Unpaid Folios', value: 7, suffix: '', color: '#eb2f96' },
 ]
 
+const operationalAlerts = [
+  { title: '12 arrivals pending pre-check-in', detail: 'CRS · action needed in next 2 hours', severity: 'blue' },
+  { title: '7 rooms awaiting housekeeping clearance', detail: 'RMS · assign Team B for tower 2', severity: 'orange' },
+  { title: 'Low stock: Coffee pods at 20% par', detail: 'IMS · PO #149 ready for approval', severity: 'magenta' },
+]
+
 export default function OverviewPage() {
-  const { allowedModules, tenant } = useAppContext()
-  const navigate = useNavigate()
+  const { tenant } = useAppContext()
 
   if (!tenant) return null
 
@@ -25,7 +28,7 @@ export default function OverviewPage() {
           {tenant.name} · Unified Command Center
         </Title>
         <Paragraph type="secondary">
-          Monitor every hospitality workflow across reservations, rooms, inventory, billing, and more — all powered by modular access control.
+          Monitor every hospitality workflow across reservations, rooms, inventory, billing, and more — powered by role-aware access.
         </Paragraph>
       </div>
 
@@ -45,33 +48,20 @@ export default function OverviewPage() {
         ))}
       </Row>
 
-      <Card title="Enabled Management Systems">
-        <Row gutter={[16, 16]}>
-          {MODULES.filter((module) => allowedModules.includes(module.id)).map((module) => (
-            <Col xs={24} md={12} xl={8} key={module.id}>
-              <Card
-                hoverable
-                onClick={() => navigate(module.path)}
-                style={{ borderLeft: `4px solid ${module.accent}` }}
-              >
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                  <Space align="center" size={12}>
-                    <Tag color={module.accent} style={{ marginRight: 0 }}>
-                      {module.shortName}
-                    </Tag>
-                    <Text strong>{module.name}</Text>
-                  </Space>
-                  <Paragraph type="secondary" style={{ minHeight: 48 }}>
-                    {module.description}
-                  </Paragraph>
-                  <Button type="link" size="small" style={{ paddingLeft: 0 }}>
-                    Open {module.shortName}
-                  </Button>
+      <Card title="Operational Alerts">
+        <List
+          dataSource={operationalAlerts}
+          renderItem={(alert) => (
+            <List.Item>
+              <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                <Space align="baseline" size={12}>
+                  <Tag color={alert.severity}>{alert.title}</Tag>
+                  <Text>{alert.detail}</Text>
                 </Space>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+              </Space>
+            </List.Item>
+          )}
+        />
       </Card>
     </Space>
   )

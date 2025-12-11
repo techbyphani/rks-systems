@@ -51,10 +51,10 @@ export default function Login() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        background: 'linear-gradient(135deg, #0f62fe 0%, #042b74 100%)',
+        background: 'linear-gradient(125deg, #f2f6ff 0%, #ffffff 60%, #f8fbff 100%)',
       }}
     >
-      <Card style={{ width: 460, maxWidth: '100%', boxShadow: '0 12px 40px rgba(0,0,0,0.2)' }}>
+      <Card style={{ width: 480, maxWidth: '100%', boxShadow: '0 16px 60px rgba(15, 98, 254, 0.1)', borderRadius: 16 }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div style={{ textAlign: 'center' }}>
             <div
@@ -62,7 +62,7 @@ export default function Login() {
                 width: 72,
                 height: 72,
                 borderRadius: '50%',
-                background: '#e6f0ff',
+                background: '#eef3ff',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -74,7 +74,7 @@ export default function Login() {
             <Title level={3} style={{ marginBottom: 4 }}>
               {PRIMARY_TENANT.name} · Staff Login
             </Title>
-            <Text type="secondary">Choose your role and enter the password to manage operations.</Text>
+            <Text type="secondary">Choose your role and enter the shared password to access the suite.</Text>
           </div>
 
           {error && <Alert type="error" message={error} showIcon closable onClose={() => setError(null)} />}
@@ -99,7 +99,7 @@ export default function Login() {
             </Button>
           </Form>
 
-          <div style={{ background: '#f5f7fb', padding: 12, borderRadius: 8 }}>
+          <div style={{ background: '#f5f7fb', padding: 12, borderRadius: 12 }}>
             <Paragraph style={{ marginBottom: 8, fontWeight: 600 }}>Demo credentials</Paragraph>
             {tenantUsers.map((user) => (
               <Paragraph key={user.id} style={{ marginBottom: 4 }}>

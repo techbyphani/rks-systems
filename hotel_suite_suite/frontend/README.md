@@ -56,12 +56,18 @@ npm run dev
 
 | User | Role | Password |
 | --- | --- | --- |
-| Ana Rodrigues | Admin | `admin@123` |
-| Mason Clark | Hotel Manager | `manager@123` |
-| Rhea Kapoor | Receptionist | `welcome@123` |
-| Liam Tan | Supply / Inventory Manager | `supply@123` |
-| Eva Singh | Accounting | `finance@123` |
-| Noah Patel | Housekeeping Lead | `rooms@123` |
+| Claire Bennett | Corporate Admin | `owner@123` |
+| Mason Clark | General Manager | `manager@123` |
+| Sophia Lee | Front Office Manager | `frontdesk@123` |
+| Rhea Kapoor | Reservations Lead | `reserve@123` |
+| Dan Murphy | Reception Supervisor | `welcome@123` |
+| Noah Patel | Housekeeping Chief | `rooms@123` |
+| Elena Rossi | Engineering Manager | `engg@123` |
+| Liam Tan | Inventory & Procurement Manager | `supply@123` |
+| Maya Fernandez | Food & Beverage Manager | `dining@123` |
+| Eva Singh | Finance Controller | `finance@123` |
+| Hannah Nguyen | HR Manager | `people@123` |
+| Isaac Romero | IT Systems Admin | `systems@123` |
 
 ## Customising the Demo
 
