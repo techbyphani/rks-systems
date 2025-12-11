@@ -12,6 +12,8 @@ export interface UserProfile {
   modules?: ModuleId[]
 }
 
+const DEFAULT_TENANT_ID = 'aurora-grand'
+
 export const USERS: UserProfile[] = [
   {
     id: 'ana-admin',
@@ -19,7 +21,7 @@ export const USERS: UserProfile[] = [
     username: 'ana.admin',
     password: 'admin@123',
     role: 'admin',
-    tenantId: 'aurora-grand',
+    tenantId: DEFAULT_TENANT_ID,
   },
   {
     id: 'mason-manager',
@@ -27,7 +29,7 @@ export const USERS: UserProfile[] = [
     username: 'mason.manager',
     password: 'manager@123',
     role: 'manager',
-    tenantId: 'aurora-grand',
+    tenantId: DEFAULT_TENANT_ID,
   },
   {
     id: 'rhea-reception',
@@ -35,7 +37,7 @@ export const USERS: UserProfile[] = [
     username: 'rhea.reception',
     password: 'welcome@123',
     role: 'receptionist',
-    tenantId: 'aurora-grand',
+    tenantId: DEFAULT_TENANT_ID,
     modules: ['crs', 'rms', 'oms', 'bms', 'tms', 'ams'],
   },
   {
@@ -44,7 +46,7 @@ export const USERS: UserProfile[] = [
     username: 'liam.logistics',
     password: 'supply@123',
     role: 'manager',
-    tenantId: 'pacific-breeze',
+    tenantId: DEFAULT_TENANT_ID,
     modules: ['ims', 'sms', 'oms', 'tms'],
   },
   {
@@ -53,7 +55,7 @@ export const USERS: UserProfile[] = [
     username: 'eva.accounting',
     password: 'finance@123',
     role: 'accounting',
-    tenantId: 'serene-suites',
+    tenantId: DEFAULT_TENANT_ID,
     modules: ['bms', 'as'],
   },
   {
@@ -62,7 +64,7 @@ export const USERS: UserProfile[] = [
     username: 'noah.housekeeping',
     password: 'rooms@123',
     role: 'housekeeping',
-    tenantId: 'serene-suites',
+    tenantId: DEFAULT_TENANT_ID,
     modules: ['rms', 'tms', 'ams'],
   },
 ]

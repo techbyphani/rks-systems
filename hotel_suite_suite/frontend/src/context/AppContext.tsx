@@ -11,7 +11,7 @@ import { TENANTS, type TenantPlan } from '@/config/tenants'
 import { USERS, type UserProfile } from '@/config/users'
 
 interface AppContextValue {
-  tenant: TenantPlan | null
+  tenant: TenantPlan
   user: UserProfile | null
   allowedModules: ModuleId[]
   isAuthenticated: boolean
@@ -20,6 +20,7 @@ interface AppContextValue {
 }
 
 const SESSION_KEY = 'hotel-suite:user-id'
+const PRIMARY_TENANT = TENANTS[0]
 
 const AppContext = createContext<AppContextValue | undefined>(undefined)
 
@@ -58,13 +59,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [activeUserId]
   )
 
-  const tenant = useMemo(
-    () => (user ? TENANTS.find((t) => t.id === user.tenantId) ?? null : null),
+  const tenant = useMemo<TenantPlan>(
+    () => (user ? TENANTS.find((t) => t.id === user.tenantId) ?? PRIMARY_TENANT : PRIMARY_TENANT),
     [user]
   )
 
   const allowedModules = useMemo<ModuleId[]>(() => {
-    if (!tenant || !user) return []
+    if (!user) return []
     const tenantModules = tenant.modules
     const userModules = user.modules ?? tenantModules
     return tenantModules.filter((moduleId) => userModules.includes(moduleId))

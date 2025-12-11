@@ -8,16 +8,17 @@ import { useAppContext } from '@/context/AppContext'
 
 const { Title, Text, Paragraph } = Typography
 
+const PRIMARY_TENANT = TENANTS[0]
+
 export default function Login() {
   const { login, isAuthenticated } = useAppContext()
   const navigate = useNavigate()
   const location = useLocation()
   const [form] = Form.useForm()
-  const [tenantId, setTenantId] = useState(TENANTS[0].id)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const tenantUsers = useMemo(() => USERS.filter((user) => user.tenantId === tenantId), [tenantId])
+  const tenantUsers = useMemo(() => USERS, [])
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -26,8 +27,8 @@ export default function Login() {
   }, [isAuthenticated, navigate])
 
   useEffect(() => {
-    form.setFieldsValue({ tenantId, userId: tenantUsers[0]?.id })
-  }, [form, tenantId, tenantUsers])
+    form.setFieldsValue({ userId: tenantUsers[0]?.id })
+  }, [form, tenantUsers])
 
   const handleFinish = async (values: { userId: string; password: string }) => {
     setLoading(true)
@@ -71,30 +72,14 @@ export default function Login() {
               <HomeOutlined style={{ fontSize: 32, color: '#0f62fe' }} />
             </div>
             <Title level={3} style={{ marginBottom: 4 }}>
-              Hotel Suite Login
+              {PRIMARY_TENANT.name} · Staff Login
             </Title>
-            <Text type="secondary">Select your hotel and user role to continue.</Text>
+            <Text type="secondary">Choose your role and enter the password to manage operations.</Text>
           </div>
 
           {error && <Alert type="error" message={error} showIcon closable onClose={() => setError(null)} />}
 
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={{ tenantId: TENANTS[0].id, userId: tenantUsers[0]?.id }}
-            onFinish={handleFinish}
-          >
-            <Form.Item name="tenantId" label="Hotel / Tenant" rules={[{ required: true, message: 'Please choose a hotel' }]}>
-              <Select
-                value={tenantId}
-                onChange={(value) => {
-                  setTenantId(value)
-                  setError(null)
-                }}
-                options={TENANTS.map((tenant) => ({ label: tenant.name, value: tenant.id }))}
-              />
-            </Form.Item>
-
+          <Form form={form} layout="vertical" initialValues={{ userId: tenantUsers[0]?.id }} onFinish={handleFinish}>
             <Form.Item name="userId" label="User" rules={[{ required: true, message: 'Please choose a user' }]}>
               <Select
                 placeholder="Select user"
@@ -105,7 +90,7 @@ export default function Login() {
               />
             </Form.Item>
 
-            <Form.Item name="password" label="Password" rules={[{ required: true, message: 'Enter password' }]}> 
+            <Form.Item name="password" label="Password" rules={[{ required: true, message: 'Enter password' }]}>
               <Input.Password prefix={<LockOutlined />} placeholder="Password" />
             </Form.Item>
 

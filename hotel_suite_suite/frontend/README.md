@@ -16,11 +16,12 @@ A modular React + Ant Design frontend that showcases every operational system a 
 | Task Management System (TMS) | Cross-team assignments and SLAs |
 | Accounting System (AS) | Financial health, cash flow, audit notes |
 
-## Multi-tenant & Permission Model
+## Permission Model
 
-- **Tenants (hotels)** select a plan (module list). Demo tenants live in `src/config/tenants.ts`.
-- **Users** belong to a tenant. Each user inherits tenant modules or overrides them for granular access (`src/config/users.ts`).
-- The UI reads the intersection of tenant + user permissions to build the sidebar, routes, and module availability.
+This build targets **a single hotel property** (Aurora Grand Hotel). Each staff persona has its own login and only sees the management systems relevant to that role. Future multi-property hosting will simply replicate this bundle per hotel.
+
+- Demo users are declared in `src/config/users.ts`.
+- Each user can opt into a subset of modules (beyond the hotel-wide defaults) by populating the `modules` array.
 
 ## Tech Stack
 
@@ -51,23 +52,21 @@ npm run dev
 # open http://localhost:3000/login
 ```
 
-Log in with any of the demo identities below (the login form also lists credentials for the currently selected hotel):
+### Demo credentials (Aurora Grand Hotel)
 
-| Tenant | User | Role | Password |
-| --- | --- | --- | --- |
-| Aurora Grand Hotel | Ana Rodrigues | Admin | `admin@123` |
-| Aurora Grand Hotel | Mason Clark | Manager | `manager@123` |
-| Aurora Grand Hotel | Rhea Kapoor | Receptionist | `welcome@123` |
-| Pacific Breeze Resort | Liam Tan | Manager (Supply) | `supply@123` |
-| Serene Suites | Eva Singh | Accounting | `finance@123` |
-| Serene Suites | Noah Patel | Housekeeping | `rooms@123` |
-
-No backend configuration is required—the app boots with curated mock data.
+| User | Role | Password |
+| --- | --- | --- |
+| Ana Rodrigues | Admin | `admin@123` |
+| Mason Clark | Hotel Manager | `manager@123` |
+| Rhea Kapoor | Receptionist | `welcome@123` |
+| Liam Tan | Supply / Inventory Manager | `supply@123` |
+| Eva Singh | Accounting | `finance@123` |
+| Noah Patel | Housekeeping Lead | `rooms@123` |
 
 ## Customising the Demo
 
-- Add or edit tenants in `src/config/tenants.ts` to simulate different subscription plans.
-- Manage demo users and their module entitlements in `src/config/users.ts`.
+- Update hotel details and enabled modules in `src/config/tenants.ts` (single entry by default).
+- Manage staff accounts and their entitlements in `src/config/users.ts`.
 - Each module’s view lives in `src/modules/<module-id>`; swap static arrays with API hooks when the backend is ready.
 
 ## Roadmap
