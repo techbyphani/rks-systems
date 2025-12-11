@@ -38,7 +38,7 @@ src/
 ├── config/              # Module, tenant, and user definitions
 ├── context/             # App-wide providers (tenant/user state)
 ├── modules/             # One folder per management system
-├── pages/               # Top-level suite overview
+├── pages/               # Top-level suite overview + login
 └── utils/               # Shared helpers (existing from legacy UI)
 ```
 
@@ -48,8 +48,19 @@ src/
 cd frontend
 npm install
 npm run dev
-# open http://localhost:3000/suite/overview
+# open http://localhost:3000/login
 ```
+
+Log in with any of the demo identities below (the login form also lists credentials for the currently selected hotel):
+
+| Tenant | User | Role | Password |
+| --- | --- | --- | --- |
+| Aurora Grand Hotel | Ana Rodrigues | Admin | `admin@123` |
+| Aurora Grand Hotel | Mason Clark | Manager | `manager@123` |
+| Aurora Grand Hotel | Rhea Kapoor | Receptionist | `welcome@123` |
+| Pacific Breeze Resort | Liam Tan | Manager (Supply) | `supply@123` |
+| Serene Suites | Eva Singh | Accounting | `finance@123` |
+| Serene Suites | Noah Patel | Housekeeping | `rooms@123` |
 
 No backend configuration is required—the app boots with curated mock data.
 

@@ -1,8 +1,6 @@
-import { Layout, Menu, Typography, Select, Tag } from 'antd'
+import { Button, Layout, Menu, Space, Tag, Typography } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { MODULES } from '@/config/modules'
-import { TENANTS } from '@/config/tenants'
-import { USERS } from '@/config/users'
 import { useAppContext } from '@/context/AppContext'
 import PageTransition from './PageTransition'
 
@@ -10,17 +8,19 @@ const { Header, Sider, Content } = Layout
 const { Title, Text } = Typography
 
 export default function SuiteLayout() {
-  const { tenant, user, allowedModules, switchTenant, switchUser } = useAppContext()
+  const { tenant, user, allowedModules, logout } = useAppContext()
   const location = useLocation()
   const navigate = useNavigate()
 
-  const moduleMenu = MODULES.filter((module) => allowedModules.includes(module.id)).map(
-    (module) => ({
-      key: module.path,
-      icon: module.icon,
-      label: module.shortName,
-    })
-  )
+  if (!tenant || !user) {
+    return null
+  }
+
+  const moduleMenu = MODULES.filter((module) => allowedModules.includes(module.id)).map((module) => ({
+    key: module.path,
+    icon: module.icon,
+    label: module.shortName,
+  }))
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -75,31 +75,33 @@ export default function SuiteLayout() {
             zIndex: 50,
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <Text type="secondary" style={{ marginBottom: 4 }}>
-              Active User
-            </Text>
-            <Select
-              value={user.id}
-              onChange={switchUser}
-              style={{ width: 240 }}
-              options={USERS.filter((u) => u.tenantId === tenant.id).map((u) => ({
-                label: `${u.name} · ${u.role}`,
-                value: u.id,
-              }))}
-            />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            <Text type="secondary" style={{ marginBottom: 4 }}>
-              Tenant / Plan
-            </Text>
-            <Select
-              value={tenant.id}
-              onChange={switchTenant}
-              style={{ width: 240 }}
-              options={TENANTS.map((t) => ({ label: t.name, value: t.id }))}
-            />
-          </div>
+          <Space direction="vertical" size={0}>
+            <Text type="secondary">Logged in as</Text>
+            <Title level={4} style={{ margin: 0 }}>
+              {user.name}
+            </Title>
+            <Tag color="geekblue" style={{ width: 'fit-content' }}>
+              {user.role.toUpperCase()}
+            </Tag>
+          </Space>
+          <Space size="large">
+            <div style={{ textAlign: 'right' }}>
+              <Text type="secondary">Property</Text>
+              <div>
+                <strong>{tenant.name}</strong>
+              </div>
+            </div>
+            <Button
+              type="primary"
+              danger
+              onClick={() => {
+                logout()
+                navigate('/login', { replace: true })
+              }}
+            >
+              Logout
+            </Button>
+          </Space>
         </Header>
         <Content style={{ padding: 24, background: '#f5f5f5', minHeight: 'calc(100vh - 64px)' }}>
           <PageTransition premium>

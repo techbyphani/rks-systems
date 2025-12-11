@@ -1,58 +1,95 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 import { MODULE_MAP, type ModuleId } from '@/config/modules'
 import { TENANTS, type TenantPlan } from '@/config/tenants'
 import { USERS, type UserProfile } from '@/config/users'
 
 interface AppContextValue {
-  tenant: TenantPlan
-  user: UserProfile
+  tenant: TenantPlan | null
+  user: UserProfile | null
   allowedModules: ModuleId[]
-  switchTenant: (tenantId: string) => void
-  switchUser: (userId: string) => void
+  isAuthenticated: boolean
+  login: (userId: string, password: string) => { success: boolean; message?: string }
+  logout: () => void
 }
+
+const SESSION_KEY = 'hotel-suite:user-id'
 
 const AppContext = createContext<AppContextValue | undefined>(undefined)
 
+const safeStorage = {
+  get: (): string | null => {
+    if (typeof window === 'undefined') return null
+    return window.localStorage.getItem(SESSION_KEY)
+  },
+  set: (value: string) => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(SESSION_KEY, value)
+  },
+  clear: () => {
+    if (typeof window === 'undefined') return
+    window.localStorage.removeItem(SESSION_KEY)
+  },
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [tenantId, setTenantId] = useState(TENANTS[0].id)
-  const [userId, setUserId] = useState(
-    USERS.find((user) => user.tenantId === tenantId)?.id ?? USERS[0].id
+  const [activeUserId, setActiveUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const stored = safeStorage.get()
+    if (stored) {
+      const exists = USERS.some((u) => u.id === stored)
+      if (exists) {
+        setActiveUserId(stored)
+      } else {
+        safeStorage.clear()
+      }
+    }
+  }, [])
+
+  const user = useMemo(
+    () => (activeUserId ? USERS.find((candidate) => candidate.id === activeUserId) ?? null : null),
+    [activeUserId]
   )
 
-  const tenant = useMemo(() => TENANTS.find((t) => t.id === tenantId) ?? TENANTS[0], [tenantId])
-
-  const user = useMemo(() => {
-    const fallbackUser = USERS.find((u) => u.tenantId === tenant.id) ?? USERS[0]
-    if (userId && fallbackUser.tenantId === tenant.id) {
-      return USERS.find((u) => u.id === userId) ?? fallbackUser
-    }
-    return fallbackUser
-  }, [tenant.id, userId])
+  const tenant = useMemo(
+    () => (user ? TENANTS.find((t) => t.id === user.tenantId) ?? null : null),
+    [user]
+  )
 
   const allowedModules = useMemo<ModuleId[]>(() => {
+    if (!tenant || !user) return []
     const tenantModules = tenant.modules
     const userModules = user.modules ?? tenantModules
     return tenantModules.filter((moduleId) => userModules.includes(moduleId))
-  }, [tenant.modules, user.modules])
+  }, [tenant, user])
 
-  const switchTenant = (nextTenantId: string) => {
-    if (tenantId === nextTenantId) return
-    setTenantId(nextTenantId)
-    const tenantUsers = USERS.filter((u) => u.tenantId === nextTenantId)
-    setUserId(tenantUsers[0]?.id ?? '')
+  const login = (userId: string, password: string) => {
+    const candidate = USERS.find((u) => u.id === userId)
+    if (!candidate) {
+      return { success: false, message: 'Unknown user' }
+    }
+    if (candidate.password !== password) {
+      return { success: false, message: 'Incorrect password' }
+    }
+    setActiveUserId(candidate.id)
+    safeStorage.set(candidate.id)
+    return { success: true }
   }
 
-  const switchUser = (nextUserId: string) => {
-    const candidate = USERS.find((u) => u.id === nextUserId)
-    if (!candidate) return
-    if (candidate.tenantId !== tenantId) {
-      setTenantId(candidate.tenantId)
-    }
-    setUserId(candidate.id)
+  const logout = () => {
+    setActiveUserId(null)
+    safeStorage.clear()
   }
 
   const value = useMemo<AppContextValue>(
-    () => ({ tenant, user, allowedModules, switchTenant, switchUser }),
+    () => ({ tenant, user, allowedModules, isAuthenticated: !!user, login, logout }),
     [tenant, user, allowedModules]
   )
 

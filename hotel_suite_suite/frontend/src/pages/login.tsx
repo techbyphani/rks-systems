@@ -1,151 +1,129 @@
-import { Helmet } from 'react-helmet-async'
-import { useState } from 'react'
-import { useRouter } from '@/shims/router'
-import { Form, Input, Button, Card, Typography, Space, Alert } from 'antd'
-import { UserOutlined, LockOutlined, HomeOutlined } from '@ant-design/icons'
+import { useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Alert, Button, Card, Form, Input, Select, Space, Typography } from 'antd'
+import { LockOutlined, UserOutlined, HomeOutlined } from '@ant-design/icons'
+import { TENANTS } from '@/config/tenants'
+import { USERS } from '@/config/users'
+import { useAppContext } from '@/context/AppContext'
 
-const { Title, Text } = Typography
+const { Title, Text, Paragraph } = Typography
 
 export default function Login() {
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
+  const { login, isAuthenticated } = useAppContext()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [form] = Form.useForm()
+  const [tenantId, setTenantId] = useState(TENANTS[0].id)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (values: { username: string; password: string }) => {
+  const tenantUsers = useMemo(() => USERS.filter((user) => user.tenantId === tenantId), [tenantId])
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/suite/overview', { replace: true })
+    }
+  }, [isAuthenticated, navigate])
+
+  useEffect(() => {
+    form.setFieldsValue({ tenantId, userId: tenantUsers[0]?.id })
+  }, [form, tenantId, tenantUsers])
+
+  const handleFinish = async (values: { userId: string; password: string }) => {
     setLoading(true)
-    
-    try {
-      // TODO: Implement login API call
-      console.log('Login attempt:', values)
-      
-      // Simulate login success - redirect based on role
-      // This will be replaced with actual API call
-      setTimeout(() => {
-        if (values.username === 'admin') {
-          router.push('/admin')
-        } else {
-          router.push('/reception')
-        }
-        setLoading(false)
-      }, 1000)
-    } catch (error) {
-      console.error('Login error:', error)
-      setLoading(false)
+    setError(null)
+    const result = login(values.userId, values.password)
+    setLoading(false)
+    if (result.success) {
+      const redirectTo = (location.state as { from?: string } | undefined)?.from ?? '/suite/overview'
+      navigate(redirectTo, { replace: true })
+    } else {
+      setError(result.message ?? 'Unable to log in')
     }
   }
 
   return (
-    <>
-      <Helmet>
-        <title>Login - Hotel Management System</title>
-        <meta name="description" content="Login to hotel management system" />
-      </Helmet>
-      
-      <div style={{ 
-        minHeight: '100vh', 
-        background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+    <div
+      style={{
+        minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px'
-      }}>
-        <div style={{ maxWidth: '400px', width: '100%' }}>
-          {/* Logo/Icon Section */}
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '80px',
-              height: '80px',
-              background: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
-              borderRadius: '50%',
-              marginBottom: '16px',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)'
-            }}>
-              <HomeOutlined style={{ fontSize: '40px', color: '#fff' }} />
+        padding: 24,
+        background: 'linear-gradient(135deg, #0f62fe 0%, #042b74 100%)',
+      }}
+    >
+      <Card style={{ width: 460, maxWidth: '100%', boxShadow: '0 12px 40px rgba(0,0,0,0.2)' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                background: '#e6f0ff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <HomeOutlined style={{ fontSize: 32, color: '#0f62fe' }} />
             </div>
-            <Title level={1} style={{ color: '#fff', marginBottom: '8px' }}>Hotel Management</Title>
-            <Text style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Staff Portal</Text>
+            <Title level={3} style={{ marginBottom: 4 }}>
+              Hotel Suite Login
+            </Title>
+            <Text type="secondary">Select your hotel and user role to continue.</Text>
           </div>
 
-          {/* Login Card */}
-          <Card style={{ borderRadius: '16px', boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)' }}>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <Title level={2}>Welcome Back</Title>
-              <Text type="secondary">Sign in to continue</Text>
-            </div>
+          {error && <Alert type="error" message={error} showIcon closable onClose={() => setError(null)} />}
 
-            <Form
-              form={form}
-              name="login"
-              onFinish={handleSubmit}
-              layout="vertical"
-              size="large"
-            >
-              <Form.Item
-                name="username"
-                label="Username"
-                rules={[{ required: true, message: 'Please input your username!' }]}
-              >
-                <Input 
-                  prefix={<UserOutlined />} 
-                  placeholder="Enter your username"
-                />
-              </Form.Item>
+          <Form
+            form={form}
+            layout="vertical"
+            initialValues={{ tenantId: TENANTS[0].id, userId: tenantUsers[0]?.id }}
+            onFinish={handleFinish}
+          >
+            <Form.Item name="tenantId" label="Hotel / Tenant" rules={[{ required: true, message: 'Please choose a hotel' }]}>
+              <Select
+                value={tenantId}
+                onChange={(value) => {
+                  setTenantId(value)
+                  setError(null)
+                }}
+                options={TENANTS.map((tenant) => ({ label: tenant.name, value: tenant.id }))}
+              />
+            </Form.Item>
 
-              <Form.Item
-                name="password"
-                label="Password"
-                rules={[{ required: true, message: 'Please input your password!' }]}
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="Enter your password"
-                />
-              </Form.Item>
+            <Form.Item name="userId" label="User" rules={[{ required: true, message: 'Please choose a user' }]}>
+              <Select
+                placeholder="Select user"
+                options={tenantUsers.map((user) => ({
+                  label: `${user.name} · ${user.role}`,
+                  value: user.id,
+                }))}
+              />
+            </Form.Item>
 
-              <Form.Item>
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
-                  loading={loading}
-                  block
-                  size="large"
-                >
-                  Sign In
-                </Button>
-              </Form.Item>
-            </Form>
+            <Form.Item name="password" label="Password" rules={[{ required: true, message: 'Enter password' }]}> 
+              <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+            </Form.Item>
 
-            {/* Demo Credentials */}
-            <Alert
-              message="Demo Credentials"
-              description={
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text strong>Admin:</Text>
-                    <Text code>admin / admin123</Text>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Text strong>Reception:</Text>
-                    <Text code>reception / reception123</Text>
-                  </div>
-                </Space>
-              }
-              type="info"
-              style={{ marginTop: '24px' }}
-            />
+            <Button type="primary" htmlType="submit" block size="large" loading={loading} icon={<UserOutlined />}>
+              Sign In
+            </Button>
+          </Form>
 
-            {/* Footer */}
-            <div style={{ textAlign: 'center', marginTop: '24px' }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                © 2025 RKS Systems. All rights reserved.
-              </Text>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </>
+          <div style={{ background: '#f5f7fb', padding: 12, borderRadius: 8 }}>
+            <Paragraph style={{ marginBottom: 8, fontWeight: 600 }}>Demo credentials</Paragraph>
+            {tenantUsers.map((user) => (
+              <Paragraph key={user.id} style={{ marginBottom: 4 }}>
+                <Text strong>{user.name}</Text> · {user.role} · <Text code>{user.password}</Text>
+              </Paragraph>
+            ))}
+          </div>
+        </Space>
+      </Card>
+    </div>
   )
 }

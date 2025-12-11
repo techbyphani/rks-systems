@@ -16,6 +16,8 @@ export default function OverviewPage() {
   const { allowedModules, tenant } = useAppContext()
   const navigate = useNavigate()
 
+  if (!tenant) return null
+
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
