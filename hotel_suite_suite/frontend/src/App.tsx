@@ -8,6 +8,7 @@ import ProtectedRoute from '@/components/navigation/ProtectedRoute'
 import RequireAuth from '@/components/navigation/RequireAuth'
 import OverviewPage from '@/pages/Overview'
 import LoginPage from '@/pages/login'
+import { OperatorLayout, OperatorOverview, TenantsPage, UserTemplatesPage } from '@/pages/operator'
 import { AppProvider } from '@/context/AppContext'
 import { MODULE_MAP } from '@/config/modules'
 import {
@@ -115,6 +116,13 @@ function App() {
                     }
                   />
                 </Route>
+              </Route>
+
+              <Route element={<OperatorLayout />}>
+                <Route path="/operator" element={<Navigate to="/operator/overview" replace />} />
+                <Route path="/operator/overview" element={<OperatorOverview />} />
+                <Route path="/operator/tenants" element={<TenantsPage />} />
+                <Route path="/operator/users" element={<UserTemplatesPage />} />
               </Route>
 
               <Route path="/" element={<Navigate to="/login" replace />} />
