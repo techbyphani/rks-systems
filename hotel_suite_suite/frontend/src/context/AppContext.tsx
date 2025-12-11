@@ -15,7 +15,7 @@ interface AppContextValue {
   user: UserProfile | null
   allowedModules: ModuleId[]
   isAuthenticated: boolean
-  login: (userId: string, password: string) => { success: boolean; message?: string }
+  login: (userId: string, password?: string) => { success: boolean; message?: string }
   logout: () => void
 }
 
@@ -71,12 +71,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return tenantModules.filter((moduleId) => userModules.includes(moduleId))
   }, [tenant, user])
 
-  const login = (userId: string, password: string) => {
+  const login = (userId: string, password?: string) => {
     const candidate = USERS.find((u) => u.id === userId)
     if (!candidate) {
       return { success: false, message: 'Unknown user' }
     }
-    if (candidate.password !== password) {
+    if (password && candidate.password !== password) {
       return { success: false, message: 'Incorrect password' }
     }
     setActiveUserId(candidate.id)

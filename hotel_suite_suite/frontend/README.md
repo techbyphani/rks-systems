@@ -52,22 +52,24 @@ npm run dev
 # open http://localhost:3000/login
 ```
 
-### Demo credentials (Aurora Grand Hotel)
+### Demo users (Aurora Grand Hotel)
 
-| User | Role | Password |
-| --- | --- | --- |
-| Claire Bennett | Corporate Admin | `owner@123` |
-| Mason Clark | General Manager | `manager@123` |
-| Sophia Lee | Front Office Manager | `frontdesk@123` |
-| Rhea Kapoor | Reservations Lead | `reserve@123` |
-| Dan Murphy | Reception Supervisor | `welcome@123` |
-| Noah Patel | Housekeeping Chief | `rooms@123` |
-| Elena Rossi | Engineering Manager | `engg@123` |
-| Liam Tan | Inventory & Procurement Manager | `supply@123` |
-| Maya Fernandez | Food & Beverage Manager | `dining@123` |
-| Eva Singh | Finance Controller | `finance@123` |
-| Hannah Nguyen | HR Manager | `people@123` |
-| Isaac Romero | IT Systems Admin | `systems@123` |
+Select any of the personas below on the login page—no password entry is required in this demo build:
+
+- Claire Bennett · Corporate Admin
+- Mason Clark · General Manager
+- Sophia Lee · Front Office Manager
+- Rhea Kapoor · Reservations Lead
+- Dan Murphy · Reception Supervisor
+- Noah Patel · Housekeeping Chief
+- Elena Rossi · Engineering Manager
+- Liam Tan · Inventory & Procurement Manager
+- Maya Fernandez · Food & Beverage Manager
+- Eva Singh · Finance Controller
+- Hannah Nguyen · HR Manager
+- Isaac Romero · IT Systems Admin
+
+Each user will see only the management systems they are entitled to manage.
 
 ## Customising the Demo
 

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Alert, Button, Card, Form, Input, Select, Space, Typography } from 'antd'
-import { LockOutlined, UserOutlined, HomeOutlined } from '@ant-design/icons'
+import { Button, Card, Form, Select, Space, Typography } from 'antd'
+import { UserOutlined, HomeOutlined } from '@ant-design/icons'
 import { TENANTS } from '@/config/tenants'
 import { USERS } from '@/config/users'
 import { useAppContext } from '@/context/AppContext'
@@ -15,9 +15,6 @@ export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const [form] = Form.useForm()
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
   const tenantUsers = useMemo(() => USERS, [])
 
   useEffect(() => {
@@ -30,16 +27,11 @@ export default function Login() {
     form.setFieldsValue({ userId: tenantUsers[0]?.id })
   }, [form, tenantUsers])
 
-  const handleFinish = async (values: { userId: string; password: string }) => {
-    setLoading(true)
-    setError(null)
-    const result = login(values.userId, values.password)
-    setLoading(false)
+  const handleFinish = (values: { userId: string }) => {
+    const result = login(values.userId)
     if (result.success) {
       const redirectTo = (location.state as { from?: string } | undefined)?.from ?? '/suite/overview'
       navigate(redirectTo, { replace: true })
-    } else {
-      setError(result.message ?? 'Unable to log in')
     }
   }
 
@@ -74,10 +66,8 @@ export default function Login() {
             <Title level={3} style={{ marginBottom: 4 }}>
               {PRIMARY_TENANT.name} · Staff Login
             </Title>
-            <Text type="secondary">Choose your role and enter the shared password to access the suite.</Text>
+            <Text type="secondary">Select your role to enter the unified operations suite.</Text>
           </div>
-
-          {error && <Alert type="error" message={error} showIcon closable onClose={() => setError(null)} />}
 
           <Form form={form} layout="vertical" initialValues={{ userId: tenantUsers[0]?.id }} onFinish={handleFinish}>
             <Form.Item name="userId" label="User" rules={[{ required: true, message: 'Please choose a user' }]}>
@@ -90,20 +80,16 @@ export default function Login() {
               />
             </Form.Item>
 
-            <Form.Item name="password" label="Password" rules={[{ required: true, message: 'Enter password' }]}>
-              <Input.Password prefix={<LockOutlined />} placeholder="Password" />
-            </Form.Item>
-
-            <Button type="primary" htmlType="submit" block size="large" loading={loading} icon={<UserOutlined />}>
-              Sign In
+            <Button type="primary" htmlType="submit" block size="large" icon={<UserOutlined />}>
+              Continue
             </Button>
           </Form>
 
           <div style={{ background: '#f5f7fb', padding: 12, borderRadius: 12 }}>
-            <Paragraph style={{ marginBottom: 8, fontWeight: 600 }}>Demo credentials</Paragraph>
+            <Paragraph style={{ marginBottom: 8, fontWeight: 600 }}>Roles available</Paragraph>
             {tenantUsers.map((user) => (
               <Paragraph key={user.id} style={{ marginBottom: 4 }}>
-                <Text strong>{user.name}</Text> · {user.role} · <Text code>{user.password}</Text>
+                <Text strong>{user.name}</Text> · {user.role}
               </Paragraph>
             ))}
           </div>
