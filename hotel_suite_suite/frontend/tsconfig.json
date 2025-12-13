@@ -19,14 +19,9 @@
     "allowJs": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "next/head": ["./src/shims/Head"],
-      "next/router": ["./src/shims/router"],
-      "next/link": ["./src/shims/Link"],
-      "next/image": ["./src/shims/Image"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"],
-  "exclude": ["src/pages/_app.tsx", "src/pages/_document.tsx"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
