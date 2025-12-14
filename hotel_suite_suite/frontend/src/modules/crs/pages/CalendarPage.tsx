@@ -6,7 +6,6 @@ import {
   Typography,
   Button,
   Select,
-  DatePicker,
   Tag,
   Tooltip,
   Row,
@@ -18,7 +17,6 @@ import {
 import {
   LeftOutlined,
   RightOutlined,
-  CalendarOutlined,
   PlusOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons';
@@ -26,6 +24,57 @@ import dayjs, { Dayjs } from 'dayjs';
 import { PageHeader } from '@/components/shared';
 import { reservationService, roomService } from '@/api';
 import type { Reservation, RoomType } from '@/types';
+
+// CSS for the calendar grid
+const calendarStyles = `
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    border: 1px solid #f0f0f0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .calendar-header-cell {
+    text-align: center;
+    padding: 12px 8px;
+    font-weight: 600;
+    background: #fafafa;
+    border-bottom: 1px solid #f0f0f0;
+    color: #595959;
+  }
+  .calendar-day-cell {
+    min-height: 110px;
+    padding: 8px;
+    border-right: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fff;
+    transition: background 0.2s;
+  }
+  .calendar-day-cell:nth-child(7n) {
+    border-right: none;
+  }
+  .calendar-day-cell:hover {
+    background: #f5f5f5;
+  }
+  .calendar-day-cell.other-month {
+    background: #fafafa;
+    opacity: 0.6;
+  }
+  .calendar-day-cell.today {
+    background: #e6f7ff;
+  }
+  .calendar-day-number {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .calendar-day-tags {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+`;
 
 const { Text, Title } = Typography;
 
@@ -211,120 +260,85 @@ export default function CalendarPage() {
           </Space>
         </Row>
 
+        {/* Inject calendar styles */}
+        <style>{calendarStyles}</style>
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60 }}>
             <Spin size="large" />
           </div>
         ) : (
-          <>
+          <div className="calendar-grid">
             {/* Week Days Header */}
-            <Row
-              gutter={[1, 1]}
-              style={{
-                background: '#fafafa',
-                borderBottom: '1px solid #f0f0f0',
-              }}
-            >
-              {weekDays.map((day) => (
-                <Col
-                  key={day}
-                  span={24 / 7}
-                  style={{
-                    textAlign: 'center',
-                    padding: '8px 0',
-                    fontWeight: 600,
-                  }}
-                >
-                  {day}
-                </Col>
-              ))}
-            </Row>
+            {weekDays.map((day) => (
+              <div key={day} className="calendar-header-cell">
+                {day}
+              </div>
+            ))}
 
-            {/* Calendar Grid */}
-            <div style={{ border: '1px solid #f0f0f0' }}>
-              {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, weekIndex) => (
-                <Row key={weekIndex} gutter={[1, 1]}>
-                  {calendarDays.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day) => {
-                    const isCurrentMonth = day.date.month() === currentMonth.month();
-                    const isToday = day.date.isSame(dayjs(), 'day');
-                    const dayColor = getDayColor(day);
+            {/* Calendar Days */}
+            {calendarDays.map((day) => {
+              const isCurrentMonth = day.date.month() === currentMonth.month();
+              const isToday = day.date.isSame(dayjs(), 'day');
+              const dayColor = getDayColor(day);
 
-                    return (
-                      <Col
-                        key={day.date.format('YYYY-MM-DD')}
-                        span={24 / 7}
+              const cellClasses = [
+                'calendar-day-cell',
+                !isCurrentMonth && 'other-month',
+                isToday && 'today',
+              ].filter(Boolean).join(' ');
+
+              return (
+                <div key={day.date.format('YYYY-MM-DD')} className={cellClasses}>
+                  <div className="calendar-day-number">
+                    <Text
+                      strong={isToday}
+                      style={{
+                        fontSize: 14,
+                        color: isToday ? '#1890ff' : undefined,
+                      }}
+                    >
+                      {day.date.date()}
+                    </Text>
+                    {dayColor && (
+                      <div
                         style={{
-                          minHeight: 100,
-                          padding: 8,
-                          background: isToday
-                            ? '#e6f7ff'
-                            : isCurrentMonth
-                            ? '#fff'
-                            : '#fafafa',
-                          borderRight: '1px solid #f0f0f0',
-                          borderBottom: '1px solid #f0f0f0',
-                          opacity: isCurrentMonth ? 1 : 0.5,
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: dayColor,
                         }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: 4,
-                          }}
-                        >
-                          <Text
-                            strong={isToday}
-                            style={{
-                              fontSize: 14,
-                              color: isToday ? '#1890ff' : undefined,
-                            }}
-                          >
-                            {day.date.date()}
-                          </Text>
-                          {dayColor && (
-                            <div
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                background: dayColor,
-                              }}
-                            />
-                          )}
-                        </div>
+                      />
+                    )}
+                  </div>
 
-                        <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                          {day.arrivals > 0 && (
-                            <Tooltip title={`${day.arrivals} arrival(s)`}>
-                              <Tag color="green" style={{ fontSize: 10, margin: 0 }}>
-                                ↓ {day.arrivals} IN
-                              </Tag>
-                            </Tooltip>
-                          )}
-                          {day.departures > 0 && (
-                            <Tooltip title={`${day.departures} departure(s)`}>
-                              <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>
-                                ↑ {day.departures} OUT
-                              </Tag>
-                            </Tooltip>
-                          )}
-                          {day.stayovers > 0 && (
-                            <Tooltip title={`${day.stayovers} in-house`}>
-                              <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>
-                                ● {day.stayovers}
-                              </Tag>
-                            </Tooltip>
-                          )}
-                        </Space>
-                      </Col>
-                    );
-                  })}
-                </Row>
-              ))}
-            </div>
-          </>
+                  <div className="calendar-day-tags">
+                    {day.arrivals > 0 && (
+                      <Tooltip title={`${day.arrivals} arrival(s)`}>
+                        <Tag color="green" style={{ fontSize: 10, margin: 0, cursor: 'default' }}>
+                          ↓ {day.arrivals} IN
+                        </Tag>
+                      </Tooltip>
+                    )}
+                    {day.departures > 0 && (
+                      <Tooltip title={`${day.departures} departure(s)`}>
+                        <Tag color="blue" style={{ fontSize: 10, margin: 0, cursor: 'default' }}>
+                          ↑ {day.departures} OUT
+                        </Tag>
+                      </Tooltip>
+                    )}
+                    {day.stayovers > 0 && (
+                      <Tooltip title={`${day.stayovers} in-house`}>
+                        <Tag color="purple" style={{ fontSize: 10, margin: 0, cursor: 'default' }}>
+                          ● {day.stayovers}
+                        </Tag>
+                      </Tooltip>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </Card>
 
