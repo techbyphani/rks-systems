@@ -48,3 +48,13 @@ export {
   getBillingMetrics,
   getPaymentMethodBreakdown,
 } from './billing';
+
+// Tenants & Tenant Users (Multi-tenant)
+export {
+  mockTenants,
+  mockTenantUsers,
+  getTenantById,
+  getTenantBySlug,
+  getUsersByTenantId,
+  getTenantStats,
+} from './tenants';

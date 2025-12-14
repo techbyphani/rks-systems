@@ -7,7 +7,7 @@ import SuiteLayout from '@/components/layout/SuiteLayout'
 import ProtectedRoute from '@/components/navigation/ProtectedRoute'
 import RequireAuth from '@/components/navigation/RequireAuth'
 import LoginPage from '@/pages/login'
-import { OperatorLayout, OperatorOverview, TenantsPage, UserTemplatesPage } from '@/pages/operator'
+import { OperatorLayout, OperatorOverview, TenantsPage, TenantDetailPage, UserTemplatesPage } from '@/pages/operator'
 import { AppProvider } from '@/context/AppContext'
 import { NotificationProvider } from '@/context/NotificationContext'
 
@@ -234,6 +234,7 @@ function App() {
                 <Route path="/operator" element={<Navigate to="/operator/overview" replace />} />
                 <Route path="/operator/overview" element={<OperatorOverview />} />
                 <Route path="/operator/tenants" element={<TenantsPage />} />
+                <Route path="/operator/tenants/:id" element={<TenantDetailPage />} />
                 <Route path="/operator/users" element={<UserTemplatesPage />} />
               </Route>
 

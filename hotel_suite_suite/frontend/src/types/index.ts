@@ -1120,3 +1120,173 @@ export interface RevenueData {
   otherRevenue: number;
   totalRevenue: number;
 }
+
+// ============================================================
+// MULTI-TENANT SYSTEM
+// ============================================================
+
+export type ModuleId = 
+  | 'crs'
+  | 'rms'
+  | 'ims'
+  | 'oms'
+  | 'sms'
+  | 'bms'
+  | 'ams'
+  | 'tms'
+  | 'as';
+
+export type TenantStatus = 'trial' | 'active' | 'suspended' | 'cancelled';
+export type SubscriptionPlanId = 'starter' | 'professional' | 'enterprise' | 'custom';
+
+export interface Tenant extends Timestamps {
+  id: ID;
+  name: string;
+  slug: string;                    // URL-friendly identifier
+  region: string;
+  timezone: string;
+  currency: string;
+  
+  // Subscription
+  planId: SubscriptionPlanId;
+  status: TenantStatus;
+  trialEndsAt?: string;
+  subscribedAt?: string;
+  
+  // Module Access (what operator enables)
+  enabledModules: ModuleId[];
+  
+  // Limits
+  maxUsers: number;
+  maxRooms: number;
+  
+  // Branding
+  logo?: string;
+  primaryColor?: string;
+  
+  // Contact
+  contactEmail: string;
+  contactPhone?: string;
+  address?: Address;
+  
+  // Stats (computed)
+  userCount?: number;
+  roomCount?: number;
+}
+
+export type TenantUserRole = 'hotel_admin' | 'manager' | 'supervisor' | 'staff';
+
+export interface ModulePermissions {
+  canView: boolean;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  canExport: boolean;
+}
+
+export interface TenantUser extends Timestamps {
+  id: ID;
+  tenantId: ID;
+  
+  // Profile
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  avatar?: string;
+  
+  // Role & Access
+  role: TenantUserRole;
+  moduleAccess: ModuleId[];
+  
+  // Fine-grained permissions (optional)
+  permissions?: {
+    [key in ModuleId]?: ModulePermissions;
+  };
+  
+  // Status
+  isActive: boolean;
+  lastLoginAt?: string;
+  
+  // Audit
+  createdBy?: ID;
+}
+
+export interface SubscriptionPlan {
+  id: SubscriptionPlanId;
+  name: string;
+  description: string;
+  
+  // Included modules
+  includedModules: ModuleId[];
+  optionalModules: ModuleId[];
+  
+  // Limits
+  maxUsers: number;          // -1 for unlimited
+  maxRooms: number;          // -1 for unlimited
+  
+  // Pricing (in smallest currency unit, e.g., paise)
+  monthlyPrice: number;
+  yearlyPrice: number;
+  perUserPrice: number;      // Additional user cost
+  perModulePrice: number;    // Optional module cost
+  
+  // Features list
+  features: string[];
+  
+  // Display
+  isPopular?: boolean;
+  isEnterprise?: boolean;
+}
+
+export interface CreateTenantDto {
+  name: string;
+  slug?: string;
+  region: string;
+  timezone?: string;
+  currency?: string;
+  planId: SubscriptionPlanId;
+  enabledModules?: ModuleId[];
+  contactEmail: string;
+  contactPhone?: string;
+  maxRooms?: number;
+  
+  // First admin user
+  adminFirstName: string;
+  adminLastName: string;
+  adminEmail: string;
+}
+
+export interface CreateTenantUserDto {
+  tenantId: ID;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  role: TenantUserRole;
+  moduleAccess: ModuleId[];
+}
+
+export interface UpdateTenantDto {
+  name?: string;
+  region?: string;
+  timezone?: string;
+  currency?: string;
+  status?: TenantStatus;
+  enabledModules?: ModuleId[];
+  maxUsers?: number;
+  maxRooms?: number;
+  contactEmail?: string;
+  contactPhone?: string;
+  logo?: string;
+  primaryColor?: string;
+}
+
+export interface UpdateTenantUserDto {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  role?: TenantUserRole;
+  moduleAccess?: ModuleId[];
+  isActive?: boolean;
+}

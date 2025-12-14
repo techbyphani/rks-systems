@@ -36,3 +36,7 @@ export type { EmployeeFilters } from './employeeService';
 
 // Workflow Service (Cross-module operations)
 export { workflowService } from './workflowService';
+
+// Tenant Service (Multi-tenant - Operator Panel)
+export { tenantService, tenantUserService } from './tenantService';
+export type { TenantFilters, TenantUserFilters } from './tenantService';
