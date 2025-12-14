@@ -14,6 +14,8 @@ export interface ReservationFilters {
   status?: ReservationStatus | ReservationStatus[];
   checkInDate?: string;
   checkOutDate?: string;
+  checkInFrom?: string;
+  checkInTo?: string;
   guestId?: string;
   roomTypeId?: string;
   page?: number;
@@ -70,6 +72,13 @@ export const reservationService = {
     }
     if (filters.checkOutDate) {
       result = result.filter(r => r.checkOutDate <= filters.checkOutDate!);
+    }
+    // Date range filters (checkInFrom/checkInTo)
+    if (filters.checkInFrom) {
+      result = result.filter(r => r.checkInDate >= filters.checkInFrom!);
+    }
+    if (filters.checkInTo) {
+      result = result.filter(r => r.checkInDate <= filters.checkInTo!);
     }
     
     // Search
