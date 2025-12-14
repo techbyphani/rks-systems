@@ -1,54 +1,459 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Button, 
   Card, 
   Form, 
-  Select, 
+  Input,
   Space, 
   Typography, 
-  Divider,
   Spin,
   message,
   Avatar,
-  Tag,
+  Divider,
   Alert,
 } from 'antd';
 import { 
   UserOutlined, 
-  HomeOutlined,
-  SettingOutlined,
-  TeamOutlined,
-  ApartmentOutlined,
+  LockOutlined,
+  MailOutlined,
+  ArrowLeftOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { useAppContext } from '@/context/AppContext';
-import { MODULE_INFO } from '@/config/plans';
+import { tenantService, tenantUserService } from '@/api';
 import type { Tenant, TenantUser } from '@/types';
 
 const { Title, Text, Paragraph } = Typography;
 
-type LoginMode = 'select' | 'operator' | 'hotel';
+// ============================================================
+// HOTEL LOGIN PAGE (with slug)
+// ============================================================
 
-export default function Login() {
-  const { 
-    isAuthenticated, 
-    isOperator,
-    loginAsOperator, 
-    loginAsHotelUser, 
-    loadTenants, 
-    loadTenantUsers 
-  } = useAppContext();
+function HotelLoginPage({ slug }: { slug: string }) {
+  const { loginAsHotelUser } = useAppContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [form] = Form.useForm();
 
-  const [mode, setMode] = useState<LoginMode>('select');
-  const [loading, setLoading] = useState(false);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
   const [users, setUsers] = useState<TenantUser[]>([]);
-  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
-  const [loadingTenants, setLoadingTenants] = useState(false);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadTenantBySlug();
+  }, [slug]);
+
+  const loadTenantBySlug = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const tenantData = await tenantService.getBySlug(slug);
+      if (!tenantData) {
+        setError('Hotel not found. Please check the URL.');
+        return;
+      }
+      if (tenantData.status === 'suspended') {
+        setError('This hotel account is currently suspended.');
+        return;
+      }
+      if (tenantData.status === 'cancelled') {
+        setError('This hotel account has been cancelled.');
+        return;
+      }
+      setTenant(tenantData);
+
+      // Load users for demo mode
+      const result = await tenantUserService.getAll({ 
+        tenantId: tenantData.id, 
+        isActive: true,
+        pageSize: 100 
+      });
+      setUsers(result.data);
+    } catch (err) {
+      setError('Failed to load hotel information.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (values: { email: string; password: string }) => {
+    if (!tenant) return;
+
+    setSubmitting(true);
+    try {
+      // In demo mode, find user by email
+      const user = users.find(u => u.email.toLowerCase() === values.email.toLowerCase());
+      
+      if (!user) {
+        message.error('User not found. Please check your email.');
+        return;
+      }
+
+      // In production, you'd validate password here
+      const result = await loginAsHotelUser(tenant.id, user.id);
+      
+      if (result.success) {
+        const redirectTo = (location.state as { from?: string } | undefined)?.from ?? '/suite/overview';
+        navigate(redirectTo, { replace: true });
+      } else {
+        message.error(result.message || 'Login failed');
+      }
+    } catch (err) {
+      message.error('Login failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <LoginWrapper>
+        <Card style={{ width: 420, textAlign: 'center', padding: 40 }}>
+          <Spin size="large" />
+          <div style={{ marginTop: 16 }}>
+            <Text type="secondary">Loading hotel...</Text>
+          </div>
+        </Card>
+      </LoginWrapper>
+    );
+  }
+
+  if (error || !tenant) {
+    return (
+      <LoginWrapper>
+        <Card style={{ width: 420 }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <Title level={4} type="danger">Unable to Load</Title>
+            <Paragraph type="secondary">{error}</Paragraph>
+          </div>
+          <Button 
+            type="primary" 
+            block 
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/login')}
+          >
+            Back to Hotel Finder
+          </Button>
+        </Card>
+      </LoginWrapper>
+    );
+  }
+
+  return (
+    <LoginWrapper brandColor={tenant.primaryColor}>
+      <Card style={{ width: 420 }}>
+        {/* Hotel Branding */}
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          {tenant.logo ? (
+            <img 
+              src={tenant.logo} 
+              alt={tenant.name} 
+              style={{ height: 60, marginBottom: 16 }}
+            />
+          ) : (
+            <Avatar 
+              size={72} 
+              style={{ 
+                backgroundColor: tenant.primaryColor || '#1890ff',
+                fontSize: 28,
+                marginBottom: 16,
+              }}
+            >
+              {tenant.name.charAt(0)}
+            </Avatar>
+          )}
+          <Title level={3} style={{ margin: 0 }}>{tenant.name}</Title>
+          <Text type="secondary">{tenant.region}</Text>
+        </div>
+
+        <Divider />
+
+        {/* Login Form */}
+        <Form form={form} layout="vertical" onFinish={handleLogin}>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Please enter your email' },
+              { type: 'email', message: 'Please enter a valid email' },
+            ]}
+          >
+            <Input 
+              prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
+              placeholder="you@hotel.com" 
+              size="large"
+              autoComplete="email"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="password"
+            label="Password"
+            rules={[{ required: true, message: 'Please enter your password' }]}
+          >
+            <Input.Password 
+              prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
+              placeholder="••••••••" 
+              size="large"
+              autoComplete="current-password"
+            />
+          </Form.Item>
+
+          <Form.Item style={{ marginBottom: 16 }}>
+            <Button 
+              type="primary" 
+              htmlType="submit" 
+              block 
+              size="large"
+              loading={submitting}
+              style={{ 
+                backgroundColor: tenant.primaryColor || undefined,
+                borderColor: tenant.primaryColor || undefined,
+              }}
+            >
+              Sign In
+            </Button>
+          </Form.Item>
+
+          <div style={{ textAlign: 'center' }}>
+            <Button type="link" size="small">
+              Forgot password?
+            </Button>
+          </div>
+        </Form>
+
+        {/* Demo Mode Helper */}
+        {users.length > 0 && (
+          <>
+            <Divider style={{ margin: '16px 0' }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Demo Mode</Text>
+            </Divider>
+            <Alert
+              message="Quick Login (Demo)"
+              description={
+                <div style={{ fontSize: 12 }}>
+                  <div style={{ marginBottom: 8 }}>Select a user to auto-fill:</div>
+                  <Space wrap size={4}>
+                    {users.slice(0, 4).map(user => (
+                      <Button 
+                        key={user.id}
+                        size="small"
+                        onClick={() => {
+                          form.setFieldsValue({ 
+                            email: user.email,
+                            password: 'demo123',
+                          });
+                        }}
+                      >
+                        {user.firstName}
+                      </Button>
+                    ))}
+                  </Space>
+                </div>
+              }
+              type="info"
+              style={{ marginBottom: 0 }}
+            />
+          </>
+        )}
+      </Card>
+
+      {/* Footer */}
+      <div style={{ marginTop: 16, textAlign: 'center' }}>
+        <Button 
+          type="link" 
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/login')}
+          style={{ color: 'rgba(255,255,255,0.8)' }}
+        >
+          Not your hotel? Find yours
+        </Button>
+      </div>
+    </LoginWrapper>
+  );
+}
+
+// ============================================================
+// HOTEL FINDER PAGE (main /login)
+// ============================================================
+
+function HotelFinderPage() {
+  const navigate = useNavigate();
+  const [searching, setSearching] = useState(false);
+  const [hotels, setHotels] = useState<Tenant[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    loadHotels();
+  }, []);
+
+  const loadHotels = async () => {
+    try {
+      const [active, trial] = await Promise.all([
+        tenantService.getAll({ status: 'active', pageSize: 50 }),
+        tenantService.getAll({ status: 'trial', pageSize: 50 }),
+      ]);
+      setHotels([...active.data, ...trial.data]);
+    } catch (err) {
+      console.error('Failed to load hotels');
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchTerm.trim()) return;
+
+    setSearching(true);
+    try {
+      const results = await tenantService.search(searchTerm);
+      if (results.length === 1) {
+        // Direct navigation if exact match
+        navigate(`/login/${results[0].slug}`);
+      } else if (results.length > 1) {
+        setHotels(results);
+      } else {
+        message.warning('No hotels found. Try a different search term.');
+      }
+    } catch (err) {
+      message.error('Search failed');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const filteredHotels = hotels.filter(h => 
+    h.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    h.region.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <LoginWrapper>
+      <Card style={{ width: 480 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+              fontSize: 32,
+            }}
+          >
+            🏨
+          </div>
+          <Title level={3} style={{ marginBottom: 4 }}>Hotel Suite</Title>
+          <Text type="secondary">Find your hotel to sign in</Text>
+        </div>
+
+        {/* Search */}
+        <Input.Search
+          placeholder="Search by hotel name or region..."
+          size="large"
+          enterButton={<SearchOutlined />}
+          loading={searching}
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          onSearch={handleSearch}
+          style={{ marginBottom: 24 }}
+        />
+
+        {/* Hotel List */}
+        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+          {filteredHotels.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 24 }}>
+              <Text type="secondary">No hotels found</Text>
+            </div>
+          ) : (
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+              {filteredHotels.map(hotel => (
+                <Card 
+                  key={hotel.id}
+                  size="small"
+                  hoverable
+                  onClick={() => navigate(`/login/${hotel.slug}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <Space>
+                    <Avatar 
+                      style={{ backgroundColor: hotel.primaryColor || '#1890ff' }}
+                    >
+                      {hotel.name.charAt(0)}
+                    </Avatar>
+                    <div>
+                      <Text strong>{hotel.name}</Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {hotel.region}
+                      </Text>
+                    </div>
+                  </Space>
+                </Card>
+              ))}
+            </Space>
+          )}
+        </div>
+
+        <Divider />
+
+        {/* Operator Link */}
+        <div style={{ textAlign: 'center' }}>
+          <Button 
+            type="link" 
+            onClick={() => navigate('/operator')}
+            style={{ color: '#722ed1' }}
+          >
+            Operator Admin Panel →
+          </Button>
+        </div>
+      </Card>
+    </LoginWrapper>
+  );
+}
+
+// ============================================================
+// WRAPPER COMPONENT
+// ============================================================
+
+function LoginWrapper({ 
+  children, 
+  brandColor 
+}: { 
+  children: React.ReactNode;
+  brandColor?: string;
+}) {
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 24,
+        background: brandColor 
+          ? `linear-gradient(135deg, ${brandColor}dd 0%, ${brandColor}99 100%)`
+          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ============================================================
+// MAIN EXPORT - Route Handler
+// ============================================================
+
+export default function LoginPage() {
+  const { slug } = useParams<{ slug?: string }>();
+  const { isAuthenticated, isOperator } = useAppContext();
+  const navigate = useNavigate();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -61,353 +466,11 @@ export default function Login() {
     }
   }, [isAuthenticated, isOperator, navigate]);
 
-  // Load tenants when hotel mode is selected
-  useEffect(() => {
-    if (mode === 'hotel') {
-      loadTenantsData();
-    }
-  }, [mode]);
+  // If slug provided, show hotel-specific login
+  if (slug) {
+    return <HotelLoginPage slug={slug} />;
+  }
 
-  const loadTenantsData = async () => {
-    setLoadingTenants(true);
-    try {
-      const data = await loadTenants();
-      setTenants(data);
-    } catch (error) {
-      message.error('Failed to load hotels');
-    } finally {
-      setLoadingTenants(false);
-    }
-  };
-
-  const handleTenantSelect = async (tenantId: string) => {
-    const tenant = tenants.find(t => t.id === tenantId);
-    setSelectedTenant(tenant || null);
-    setUsers([]);
-    form.setFieldValue('userId', undefined);
-
-    if (tenant) {
-      setLoadingUsers(true);
-      try {
-        const data = await loadTenantUsers(tenantId);
-        setUsers(data);
-      } catch (error) {
-        message.error('Failed to load users');
-      } finally {
-        setLoadingUsers(false);
-      }
-    }
-  };
-
-  const handleOperatorLogin = async () => {
-    setLoading(true);
-    try {
-      const result = await loginAsOperator();
-      if (result.success) {
-        navigate('/operator/overview', { replace: true });
-      } else {
-        message.error(result.message || 'Login failed');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleHotelLogin = async (values: { tenantId: string; userId: string }) => {
-    setLoading(true);
-    try {
-      const result = await loginAsHotelUser(values.tenantId, values.userId);
-      if (result.success) {
-        const redirectTo = (location.state as { from?: string } | undefined)?.from ?? '/suite/overview';
-        navigate(redirectTo, { replace: true });
-      } else {
-        message.error(result.message || 'Login failed');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderModeSelection = () => (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 16,
-          }}
-        >
-          <HomeOutlined style={{ fontSize: 32, color: '#fff' }} />
-        </div>
-        <Title level={3} style={{ marginBottom: 4 }}>Hotel Suite</Title>
-        <Text type="secondary">Unified Hotel Management Platform</Text>
-      </div>
-
-      <Divider>Select Access Type</Divider>
-
-      <Card
-        hoverable
-        onClick={() => setMode('hotel')}
-        style={{ cursor: 'pointer' }}
-      >
-        <Space align="start">
-          <Avatar 
-            size={48} 
-            style={{ backgroundColor: '#1890ff' }}
-            icon={<TeamOutlined />}
-          />
-          <div>
-            <Text strong style={{ fontSize: 16 }}>Hotel Staff Login</Text>
-            <br />
-            <Text type="secondary">Access your hotel's management system</Text>
-          </div>
-        </Space>
-      </Card>
-
-      <Card
-        hoverable
-        onClick={() => setMode('operator')}
-        style={{ cursor: 'pointer' }}
-      >
-        <Space align="start">
-          <Avatar 
-            size={48} 
-            style={{ backgroundColor: '#722ed1' }}
-            icon={<SettingOutlined />}
-          />
-          <div>
-            <Text strong style={{ fontSize: 16 }}>Operator Panel</Text>
-            <br />
-            <Text type="secondary">Manage hotels and subscriptions (Admin only)</Text>
-          </div>
-        </Space>
-      </Card>
-    </Space>
-  );
-
-  const renderOperatorLogin = () => (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: '50%',
-            background: '#722ed1',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 16,
-          }}
-        >
-          <SettingOutlined style={{ fontSize: 32, color: '#fff' }} />
-        </div>
-        <Title level={3} style={{ marginBottom: 4 }}>Operator Panel</Title>
-        <Text type="secondary">Hotel Suite Administration</Text>
-      </div>
-
-      <Alert
-        message="Demo Mode"
-        description="Click below to access the operator panel. In production, this would require authentication."
-        type="info"
-        showIcon
-      />
-
-      <Button 
-        type="primary" 
-        block 
-        size="large"
-        onClick={handleOperatorLogin}
-        loading={loading}
-        style={{ background: '#722ed1', borderColor: '#722ed1' }}
-      >
-        Enter Operator Panel
-      </Button>
-
-      <Button type="link" block onClick={() => setMode('select')}>
-        ← Back to selection
-      </Button>
-    </Space>
-  );
-
-  const renderHotelLogin = () => (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: '50%',
-            background: '#1890ff',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 16,
-          }}
-        >
-          <ApartmentOutlined style={{ fontSize: 32, color: '#fff' }} />
-        </div>
-        <Title level={3} style={{ marginBottom: 4 }}>Hotel Staff Login</Title>
-        <Text type="secondary">Select your hotel and user account</Text>
-      </div>
-
-      {loadingTenants ? (
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          <Spin size="large" />
-          <div style={{ marginTop: 16 }}>
-            <Text type="secondary">Loading hotels...</Text>
-          </div>
-        </div>
-      ) : (
-        <Form form={form} layout="vertical" onFinish={handleHotelLogin}>
-          <Form.Item
-            name="tenantId"
-            label="Select Hotel"
-            rules={[{ required: true, message: 'Please select a hotel' }]}
-          >
-            <Select
-              placeholder="Choose your hotel"
-              size="large"
-              showSearch
-              optionFilterProp="label"
-              onChange={handleTenantSelect}
-              options={tenants.map(t => ({
-                label: (
-                  <Space>
-                    <span>{t.name}</span>
-                    {t.status === 'trial' && <Tag color="blue">Trial</Tag>}
-                  </Space>
-                ),
-                value: t.id,
-                searchLabel: t.name,
-              }))}
-            />
-          </Form.Item>
-
-          {selectedTenant && (
-            <>
-              {/* Show tenant info */}
-              <Card size="small" style={{ marginBottom: 16, background: '#fafafa' }}>
-                <Space direction="vertical" size={4}>
-                  <Text strong>{selectedTenant.name}</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {selectedTenant.region} • {selectedTenant.enabledModules.length} modules
-                  </Text>
-                  <Space wrap size={4} style={{ marginTop: 4 }}>
-                    {selectedTenant.enabledModules.slice(0, 5).map(m => (
-                      <Tag key={m} color={MODULE_INFO[m].color} style={{ fontSize: 10 }}>
-                        {m.toUpperCase()}
-                      </Tag>
-                    ))}
-                    {selectedTenant.enabledModules.length > 5 && (
-                      <Tag style={{ fontSize: 10 }}>+{selectedTenant.enabledModules.length - 5}</Tag>
-                    )}
-                  </Space>
-                </Space>
-              </Card>
-
-              <Form.Item
-                name="userId"
-                label="Select User"
-                rules={[{ required: true, message: 'Please select a user' }]}
-              >
-                <Select
-                  placeholder={loadingUsers ? 'Loading users...' : 'Choose your account'}
-                  size="large"
-                  loading={loadingUsers}
-                  disabled={loadingUsers}
-                  showSearch
-                  optionFilterProp="label"
-                  options={users.map(u => ({
-                    label: (
-                      <Space>
-                        <Avatar size="small" style={{ backgroundColor: '#1890ff' }}>
-                          {u.firstName[0]}
-                        </Avatar>
-                        <span>{u.firstName} {u.lastName}</span>
-                        <Tag color={
-                          u.role === 'hotel_admin' ? 'red' :
-                          u.role === 'manager' ? 'blue' :
-                          u.role === 'supervisor' ? 'purple' : 'default'
-                        }>
-                          {u.role.replace('_', ' ')}
-                        </Tag>
-                      </Space>
-                    ),
-                    value: u.id,
-                    searchLabel: `${u.firstName} ${u.lastName}`,
-                  }))}
-                />
-              </Form.Item>
-
-              <Alert
-                message="Demo Mode"
-                description="In production, users would enter their password here."
-                type="info"
-                showIcon
-                style={{ marginBottom: 16 }}
-              />
-
-              <Button 
-                type="primary" 
-                htmlType="submit" 
-                block 
-                size="large"
-                loading={loading}
-                icon={<UserOutlined />}
-              >
-                Sign In
-              </Button>
-            </>
-          )}
-
-          <Button 
-            type="link" 
-            block 
-            onClick={() => {
-              setMode('select');
-              setSelectedTenant(null);
-              setUsers([]);
-              form.resetFields();
-            }}
-            style={{ marginTop: 8 }}
-          >
-            ← Back to selection
-          </Button>
-        </Form>
-      )}
-    </Space>
-  );
-
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 24,
-        background: 'linear-gradient(125deg, #f2f6ff 0%, #ffffff 60%, #f8fbff 100%)',
-      }}
-    >
-      <Card 
-        style={{ 
-          width: 480, 
-          maxWidth: '100%', 
-          boxShadow: '0 16px 60px rgba(15, 98, 254, 0.1)', 
-          borderRadius: 16 
-        }}
-      >
-        {mode === 'select' && renderModeSelection()}
-        {mode === 'operator' && renderOperatorLogin()}
-        {mode === 'hotel' && renderHotelLogin()}
-      </Card>
-    </div>
-  );
+  // Otherwise show hotel finder
+  return <HotelFinderPage />;
 }

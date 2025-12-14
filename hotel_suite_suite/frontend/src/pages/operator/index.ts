@@ -1,4 +1,5 @@
 export { default as OperatorLayout } from './OperatorLayout'
+export { default as OperatorLogin } from './OperatorLogin'
 export { default as OperatorOverview } from './OperatorOverview'
 export { default as TenantsPage } from './TenantsPage'
 export { default as TenantDetailPage } from './TenantDetailPage'

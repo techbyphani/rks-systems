@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Layout, Menu, Typography, Button, Space, Dropdown, Avatar } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { 
@@ -22,9 +23,21 @@ const operatorLinks = [
 ]
 
 export default function OperatorLayout() {
-  const { logout } = useAppContext()
+  const { logout, isAuthenticated, isOperator } = useAppContext()
   const location = useLocation()
   const navigate = useNavigate()
+
+  // Redirect to operator login if not authenticated as operator
+  useEffect(() => {
+    if (!isAuthenticated || !isOperator) {
+      navigate('/operator/login', { replace: true })
+    }
+  }, [isAuthenticated, isOperator, navigate])
+
+  // Don't render if not authenticated
+  if (!isAuthenticated || !isOperator) {
+    return null
+  }
 
   const handleLogout = () => {
     logout()

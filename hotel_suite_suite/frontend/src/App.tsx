@@ -7,7 +7,7 @@ import SuiteLayout from '@/components/layout/SuiteLayout'
 import ProtectedRoute from '@/components/navigation/ProtectedRoute'
 import RequireAuth from '@/components/navigation/RequireAuth'
 import LoginPage from '@/pages/login'
-import { OperatorLayout, OperatorOverview, TenantsPage, TenantDetailPage, UserTemplatesPage } from '@/pages/operator'
+import { OperatorLayout, OperatorLogin, OperatorOverview, TenantsPage, TenantDetailPage, UserTemplatesPage } from '@/pages/operator'
 import { AppProvider } from '@/context/AppContext'
 import { NotificationProvider } from '@/context/NotificationContext'
 
@@ -72,8 +72,9 @@ function App() {
           <NotificationProvider>
           <BrowserRouter>
             <Routes>
-              {/* Public Routes */}
+              {/* Public Routes - Login */}
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/login/:slug" element={<LoginPage />} />
 
               {/* Protected Suite Routes */}
               <Route element={<RequireAuth />}>
@@ -237,8 +238,9 @@ function App() {
               </Route>
 
               {/* Operator Routes (SaaS Admin) */}
+              <Route path="/operator/login" element={<OperatorLogin />} />
+              <Route path="/operator" element={<Navigate to="/operator/login" replace />} />
               <Route element={<OperatorLayout />}>
-                <Route path="/operator" element={<Navigate to="/operator/overview" replace />} />
                 <Route path="/operator/overview" element={<OperatorOverview />} />
                 <Route path="/operator/tenants" element={<TenantsPage />} />
                 <Route path="/operator/tenants/:id" element={<TenantDetailPage />} />
