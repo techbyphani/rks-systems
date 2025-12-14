@@ -5,6 +5,7 @@ import {
   Card, 
   Form, 
   Input,
+  Select,
   Space, 
   Typography, 
   Spin,
@@ -12,19 +13,28 @@ import {
   Avatar,
   Divider,
   Alert,
+  Tag,
 } from 'antd';
 import { 
   UserOutlined, 
   LockOutlined,
-  MailOutlined,
   ArrowLeftOutlined,
   SearchOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useAppContext } from '@/context/AppContext';
 import { tenantService, tenantUserService } from '@/api';
 import type { Tenant, TenantUser } from '@/types';
 
 const { Title, Text, Paragraph } = Typography;
+
+// Role display config
+const ROLE_CONFIG: Record<string, { label: string; color: string }> = {
+  hotel_admin: { label: 'Admin', color: 'red' },
+  manager: { label: 'Manager', color: 'blue' },
+  supervisor: { label: 'Supervisor', color: 'purple' },
+  staff: { label: 'Staff', color: 'default' },
+};
 
 // ============================================================
 // HOTEL LOGIN PAGE (with slug)
@@ -40,6 +50,7 @@ function HotelLoginPage({ slug }: { slug: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [users, setUsers] = useState<TenantUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<TenantUser | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,6 +90,17 @@ function HotelLoginPage({ slug }: { slug: string }) {
     }
   };
 
+  const handleUserSelect = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    setSelectedUser(user || null);
+    if (user) {
+      form.setFieldsValue({
+        email: user.email,
+        password: 'demo123',
+      });
+    }
+  };
+
   const handleLogin = async (values: { email: string; password: string }) => {
     if (!tenant) return;
 
@@ -88,11 +110,10 @@ function HotelLoginPage({ slug }: { slug: string }) {
       const user = users.find(u => u.email.toLowerCase() === values.email.toLowerCase());
       
       if (!user) {
-        message.error('User not found. Please check your email.');
+        message.error('User not found. Please check your email or select from the dropdown.');
         return;
       }
 
-      // In production, you'd validate password here
       const result = await loginAsHotelUser(tenant.id, user.id);
       
       if (result.success) {
@@ -108,10 +129,18 @@ function HotelLoginPage({ slug }: { slug: string }) {
     }
   };
 
+  // Group users by department
+  const usersByDepartment = users.reduce((acc, user) => {
+    const dept = (user as any).department || 'Other';
+    if (!acc[dept]) acc[dept] = [];
+    acc[dept].push(user);
+    return acc;
+  }, {} as Record<string, TenantUser[]>);
+
   if (loading) {
     return (
       <LoginWrapper>
-        <Card style={{ width: 420, textAlign: 'center', padding: 40 }}>
+        <Card style={{ width: 480, textAlign: 'center', padding: 40 }}>
           <Spin size="large" />
           <div style={{ marginTop: 16 }}>
             <Text type="secondary">Loading hotel...</Text>
@@ -124,7 +153,7 @@ function HotelLoginPage({ slug }: { slug: string }) {
   if (error || !tenant) {
     return (
       <LoginWrapper>
-        <Card style={{ width: 420 }}>
+        <Card style={{ width: 480 }}>
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <Title level={4} type="danger">Unable to Load</Title>
             <Paragraph type="secondary">{error}</Paragraph>
@@ -144,7 +173,7 @@ function HotelLoginPage({ slug }: { slug: string }) {
 
   return (
     <LoginWrapper brandColor={tenant.primaryColor}>
-      <Card style={{ width: 420 }}>
+      <Card style={{ width: 520 }}>
         {/* Hotel Branding */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           {tenant.logo ? (
@@ -169,7 +198,90 @@ function HotelLoginPage({ slug }: { slug: string }) {
           <Text type="secondary">{tenant.region}</Text>
         </div>
 
-        <Divider />
+        <Divider style={{ margin: '16px 0' }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>Staff Login</Text>
+        </Divider>
+
+        {/* User Selection (Demo Mode) */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <TeamOutlined />
+            <Text strong>Select User</Text>
+            <Tag color="blue" style={{ marginLeft: 'auto' }}>Demo Mode</Tag>
+          </div>
+          <Select
+            placeholder="Choose a user to login as..."
+            size="large"
+            style={{ width: '100%' }}
+            onChange={handleUserSelect}
+            value={selectedUser?.id}
+            showSearch
+            optionFilterProp="label"
+          >
+            {Object.entries(usersByDepartment).map(([dept, deptUsers]) => (
+              <Select.OptGroup key={dept} label={dept}>
+                {deptUsers.map(user => {
+                  const roleConfig = ROLE_CONFIG[user.role] || ROLE_CONFIG.staff;
+                  return (
+                    <Select.Option 
+                      key={user.id} 
+                      value={user.id}
+                      label={`${user.firstName} ${user.lastName}`}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Space>
+                          <Avatar size="small" style={{ backgroundColor: tenant.primaryColor }}>
+                            {user.firstName[0]}
+                          </Avatar>
+                          <div>
+                            <div>{user.firstName} {user.lastName}</div>
+                            <Text type="secondary" style={{ fontSize: 11 }}>
+                              {(user as any).jobTitle || user.role}
+                            </Text>
+                          </div>
+                        </Space>
+                        <Tag color={roleConfig.color} style={{ marginLeft: 8 }}>
+                          {roleConfig.label}
+                        </Tag>
+                      </div>
+                    </Select.Option>
+                  );
+                })}
+              </Select.OptGroup>
+            ))}
+          </Select>
+        </div>
+
+        {/* Selected User Info */}
+        {selectedUser && (
+          <Alert
+            message={
+              <Space>
+                <Avatar style={{ backgroundColor: tenant.primaryColor }}>
+                  {selectedUser.firstName[0]}
+                </Avatar>
+                <div>
+                  <Text strong>{selectedUser.firstName} {selectedUser.lastName}</Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {(selectedUser as any).jobTitle || selectedUser.role} • {(selectedUser as any).department || 'Staff'}
+                  </Text>
+                </div>
+              </Space>
+            }
+            description={
+              <div style={{ marginTop: 8 }}>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  Access: {selectedUser.moduleAccess.map(m => m.toUpperCase()).join(', ')}
+                </Text>
+              </div>
+            }
+            type="info"
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        <Divider style={{ margin: '16px 0' }} />
 
         {/* Login Form */}
         <Form form={form} layout="vertical" onFinish={handleLogin}>
@@ -182,7 +294,7 @@ function HotelLoginPage({ slug }: { slug: string }) {
             ]}
           >
             <Input 
-              prefix={<MailOutlined style={{ color: '#bfbfbf' }} />}
+              prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
               placeholder="you@hotel.com" 
               size="large"
               autoComplete="email"
@@ -224,41 +336,6 @@ function HotelLoginPage({ slug }: { slug: string }) {
             </Button>
           </div>
         </Form>
-
-        {/* Demo Mode Helper */}
-        {users.length > 0 && (
-          <>
-            <Divider style={{ margin: '16px 0' }}>
-              <Text type="secondary" style={{ fontSize: 12 }}>Demo Mode</Text>
-            </Divider>
-            <Alert
-              message="Quick Login (Demo)"
-              description={
-                <div style={{ fontSize: 12 }}>
-                  <div style={{ marginBottom: 8 }}>Select a user to auto-fill:</div>
-                  <Space wrap size={4}>
-                    {users.slice(0, 4).map(user => (
-                      <Button 
-                        key={user.id}
-                        size="small"
-                        onClick={() => {
-                          form.setFieldsValue({ 
-                            email: user.email,
-                            password: 'demo123',
-                          });
-                        }}
-                      >
-                        {user.firstName}
-                      </Button>
-                    ))}
-                  </Space>
-                </div>
-              }
-              type="info"
-              style={{ marginBottom: 0 }}
-            />
-          </>
-        )}
       </Card>
 
       {/* Footer */}
@@ -309,7 +386,6 @@ function HotelFinderPage() {
     try {
       const results = await tenantService.search(searchTerm);
       if (results.length === 1) {
-        // Direct navigation if exact match
         navigate(`/login/${results[0].slug}`);
       } else if (results.length > 1) {
         setHotels(results);
@@ -330,7 +406,7 @@ function HotelFinderPage() {
 
   return (
     <LoginWrapper>
-      <Card style={{ width: 480 }}>
+      <Card style={{ width: 520 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div
             style={{
@@ -364,7 +440,7 @@ function HotelFinderPage() {
         />
 
         {/* Hotel List */}
-        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+        <div style={{ maxHeight: 320, overflowY: 'auto' }}>
           {filteredHotels.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 24 }}>
               <Text type="secondary">No hotels found</Text>
@@ -379,19 +455,25 @@ function HotelFinderPage() {
                   onClick={() => navigate(`/login/${hotel.slug}`)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <Space>
-                    <Avatar 
-                      style={{ backgroundColor: hotel.primaryColor || '#1890ff' }}
-                    >
-                      {hotel.name.charAt(0)}
-                    </Avatar>
-                    <div>
-                      <Text strong>{hotel.name}</Text>
-                      <br />
-                      <Text type="secondary" style={{ fontSize: 12 }}>
-                        {hotel.region}
-                      </Text>
-                    </div>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Space>
+                      <Avatar 
+                        size={40}
+                        style={{ backgroundColor: hotel.primaryColor || '#1890ff' }}
+                      >
+                        {hotel.name.charAt(0)}
+                      </Avatar>
+                      <div>
+                        <Text strong>{hotel.name}</Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {hotel.region}
+                        </Text>
+                      </div>
+                    </Space>
+                    {hotel.status === 'trial' && (
+                      <Tag color="blue">Trial</Tag>
+                    )}
                   </Space>
                 </Card>
               ))}
@@ -405,7 +487,7 @@ function HotelFinderPage() {
         <div style={{ textAlign: 'center' }}>
           <Button 
             type="link" 
-            onClick={() => navigate('/operator')}
+            onClick={() => navigate('/operator/login')}
             style={{ color: '#722ed1' }}
           >
             Operator Admin Panel →

@@ -1195,6 +1195,10 @@ export interface TenantUser extends Timestamps {
   phone?: string;
   avatar?: string;
   
+  // Job Info
+  department?: string;
+  jobTitle?: string;
+  
   // Role & Access
   role: TenantUserRole;
   moduleAccess: ModuleId[];
