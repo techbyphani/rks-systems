@@ -1,10 +1,10 @@
 /**
  * Module Dependencies Configuration
  * 
- * This file defines how modules relate to each other:
- * - Required: Must be enabled together (core functionality breaks without)
- * - Enhances: Works better with, but can work without
- * - Independent: No dependencies
+ * STRICT RULES:
+ * - When enabling a module, all its dependencies are auto-enabled
+ * - Cannot disable a module if others depend on it
+ * - This prevents broken configurations at the operator level
  */
 
 import type { ModuleId } from '@/types';
@@ -13,157 +13,156 @@ import type { ModuleId } from '@/types';
 // DEPENDENCY DEFINITIONS
 // ============================================================
 
-export interface ModuleDependency {
-  moduleId: ModuleId;
-  type: 'required' | 'enhances';
-  reason: string;
-}
+/**
+ * STRICT Dependency Map
+ * Key: Module ID
+ * Value: Array of modules that MUST be enabled for this module to work
+ */
+export const MODULE_REQUIRES: Record<ModuleId, ModuleId[]> = {
+  // RMS is the base - rooms are fundamental
+  rms: [],
+  
+  // CRS needs rooms to make reservations
+  crs: ['rms'],
+  
+  // BMS needs reservations (which needs rooms)
+  bms: ['crs', 'rms'],
+  
+  // IMS is standalone - inventory base
+  ims: [],
+  
+  // OMS needs inventory for menu items
+  oms: ['ims'],
+  
+  // SMS needs inventory to update stock
+  sms: ['ims'],
+  
+  // AMS is standalone
+  ams: [],
+  
+  // TMS is standalone
+  tms: [],
+  
+  // AS needs billing (which needs reservations, which needs rooms)
+  as: ['bms', 'crs', 'rms'],
+};
 
-export interface ModuleConfig {
+/**
+ * Reverse dependency map - who depends on me?
+ * Used to check if we can disable a module
+ */
+export const MODULE_REQUIRED_BY: Record<ModuleId, ModuleId[]> = {
+  rms: ['crs', 'bms', 'as'],  // Can't disable RMS if CRS, BMS, or AS is enabled
+  crs: ['bms', 'as'],         // Can't disable CRS if BMS or AS is enabled
+  bms: ['as'],                // Can't disable BMS if AS is enabled
+  ims: ['oms', 'sms'],        // Can't disable IMS if OMS or SMS is enabled
+  oms: [],                    // Nothing depends on OMS
+  sms: [],                    // Nothing depends on SMS
+  ams: [],                    // Nothing depends on AMS
+  tms: [],                    // Nothing depends on TMS
+  as: [],                     // Nothing depends on AS
+};
+
+// ============================================================
+// MODULE METADATA
+// ============================================================
+
+export interface ModuleInfo {
   id: ModuleId;
   name: string;
-  // Modules this one depends on
-  dependencies: ModuleDependency[];
-  // What this module can do standalone vs with dependencies
-  standalone: {
-    capable: boolean;
-    limitations?: string[];
-  };
+  shortName: string;
+  description: string;
+  requires: ModuleId[];
+  requiredBy: ModuleId[];
+  isBase: boolean;  // Can be enabled alone
 }
 
-export const MODULE_DEPENDENCIES: Record<ModuleId, ModuleConfig> = {
-  // CRS - Customer Reservation System
-  crs: {
-    id: 'crs',
-    name: 'Reservations (CRS)',
-    dependencies: [
-      {
-        moduleId: 'rms',
-        type: 'required',
-        reason: 'Room assignment requires Room Management',
-      },
-    ],
-    standalone: {
-      capable: false,
-      limitations: ['Cannot assign rooms without RMS'],
-    },
-  },
-
-  // RMS - Room Management System
+export const MODULE_DETAILS: Record<ModuleId, ModuleInfo> = {
   rms: {
     id: 'rms',
-    name: 'Rooms (RMS)',
-    dependencies: [],
-    standalone: {
-      capable: true,
-      limitations: [],
-    },
+    name: 'Room Management System',
+    shortName: 'Rooms',
+    description: 'Room inventory, housekeeping, and maintenance',
+    requires: [],
+    requiredBy: ['crs', 'bms', 'as'],
+    isBase: true,
   },
-
-  // BMS - Billing Management System
+  crs: {
+    id: 'crs',
+    name: 'Customer Reservation System',
+    shortName: 'Reservations',
+    description: 'Guest profiles, bookings, check-in/out',
+    requires: ['rms'],
+    requiredBy: ['bms', 'as'],
+    isBase: false,
+  },
   bms: {
     id: 'bms',
-    name: 'Billing (BMS)',
-    dependencies: [],
-    standalone: {
-      capable: true,
-      limitations: ['Advanced reporting requires AS module'],
-    },
+    name: 'Billing Management System',
+    shortName: 'Billing',
+    description: 'Folios, payments, invoices',
+    requires: ['crs', 'rms'],
+    requiredBy: ['as'],
+    isBase: false,
   },
-
-  // IMS - Inventory Management System
   ims: {
     id: 'ims',
-    name: 'Inventory (IMS)',
-    dependencies: [],
-    standalone: {
-      capable: true,
-    },
+    name: 'Inventory Management System',
+    shortName: 'Inventory',
+    description: 'Stock tracking and management',
+    requires: [],
+    requiredBy: ['oms', 'sms'],
+    isBase: true,
   },
-
-  // OMS - Order Management System
   oms: {
     id: 'oms',
-    name: 'Orders (OMS)',
-    dependencies: [
-      {
-        moduleId: 'ims',
-        type: 'enhances',
-        reason: 'Stock tracking requires Inventory module',
-      },
-      {
-        moduleId: 'bms',
-        type: 'enhances',
-        reason: 'Guest charging requires Billing module',
-      },
-    ],
-    standalone: {
-      capable: true,
-      limitations: [
-        'Without IMS: No stock level tracking',
-        'Without BMS: Cannot post charges to guest folios (cash only)',
-      ],
-    },
+    name: 'Order Management System',
+    shortName: 'Orders',
+    description: 'Restaurant, room service, POS',
+    requires: ['ims'],
+    requiredBy: [],
+    isBase: false,
   },
-
-  // SMS - Supply Management System
   sms: {
     id: 'sms',
-    name: 'Supply (SMS)',
-    dependencies: [
-      {
-        moduleId: 'ims',
-        type: 'enhances',
-        reason: 'Auto-update stock on delivery',
-      },
-    ],
-    standalone: {
-      capable: true,
-      limitations: ['Without IMS: Manual stock updates required'],
-    },
+    name: 'Supply Management System',
+    shortName: 'Supply',
+    description: 'Vendors and purchase orders',
+    requires: ['ims'],
+    requiredBy: [],
+    isBase: false,
   },
-
-  // AMS - Attendance Management System
   ams: {
     id: 'ams',
-    name: 'Attendance (AMS)',
-    dependencies: [],
-    standalone: {
-      capable: true,
-    },
+    name: 'Attendance Management System',
+    shortName: 'Attendance',
+    description: 'Employee attendance and shifts',
+    requires: [],
+    requiredBy: [],
+    isBase: true,
   },
-
-  // TMS - Task Management System
   tms: {
     id: 'tms',
-    name: 'Tasks (TMS)',
-    dependencies: [],
-    standalone: {
-      capable: true,
-      limitations: ['Task linking to other modules requires those modules'],
-    },
+    name: 'Task Management System',
+    shortName: 'Tasks',
+    description: 'Task assignment and tracking',
+    requires: [],
+    requiredBy: [],
+    isBase: true,
   },
-
-  // AS - Accounting System
   as: {
     id: 'as',
-    name: 'Accounting (AS)',
-    dependencies: [
-      {
-        moduleId: 'bms',
-        type: 'enhances',
-        reason: 'Auto-sync billing data',
-      },
-    ],
-    standalone: {
-      capable: true,
-      limitations: ['Without BMS: Manual entry of billing transactions'],
-    },
+    name: 'Accounting System',
+    shortName: 'Accounting',
+    description: 'Financial accounts and reports',
+    requires: ['bms', 'crs', 'rms'],
+    requiredBy: [],
+    isBase: false,
   },
 };
 
 // ============================================================
-// MODULE BUNDLES (Recommended combinations)
+// MODULE BUNDLES (Pre-configured sets)
 // ============================================================
 
 export interface ModuleBundle {
@@ -172,36 +171,52 @@ export interface ModuleBundle {
   description: string;
   modules: ModuleId[];
   useCase: string;
+  recommended?: boolean;
 }
 
 export const MODULE_BUNDLES: ModuleBundle[] = [
   {
-    id: 'essential',
-    name: 'Essential Hotel Operations',
-    description: 'Core modules for any hotel',
-    modules: ['crs', 'rms', 'bms'],
-    useCase: 'Basic room booking, check-in/out, and billing',
+    id: 'rooms-only',
+    name: 'Rooms Only',
+    description: 'Just room management',
+    modules: ['rms'],
+    useCase: 'Property management without reservations',
   },
   {
-    id: 'full-service',
-    name: 'Full-Service Hotel',
-    description: 'Complete hotel with F&B',
+    id: 'basic-hotel',
+    name: 'Basic Hotel',
+    description: 'Reservations + Rooms',
+    modules: ['crs', 'rms'],
+    useCase: 'Simple guesthouse or B&B',
+  },
+  {
+    id: 'standard-hotel',
+    name: 'Standard Hotel',
+    description: 'Full booking flow with billing',
+    modules: ['crs', 'rms', 'bms'],
+    useCase: 'Most hotels - reservations, rooms, billing',
+    recommended: true,
+  },
+  {
+    id: 'hotel-with-restaurant',
+    name: 'Hotel + Restaurant',
+    description: 'Standard hotel with F&B',
     modules: ['crs', 'rms', 'bms', 'oms', 'ims'],
-    useCase: 'Hotels with restaurant/room service',
+    useCase: 'Hotels with restaurant or room service',
+  },
+  {
+    id: 'full-operations',
+    name: 'Full Operations',
+    description: 'Complete hotel operations',
+    modules: ['crs', 'rms', 'bms', 'oms', 'ims', 'sms', 'tms'],
+    useCase: 'Mid-size hotels with full control',
   },
   {
     id: 'enterprise',
-    name: 'Enterprise Suite',
-    description: 'All modules for large properties',
+    name: 'Enterprise',
+    description: 'All modules',
     modules: ['crs', 'rms', 'bms', 'oms', 'ims', 'sms', 'ams', 'tms', 'as'],
-    useCase: 'Full control over all operations',
-  },
-  {
-    id: 'guesthouse',
-    name: 'Small Guesthouse',
-    description: 'Minimal setup for small properties',
-    modules: ['crs', 'rms'],
-    useCase: 'Simple room management without billing',
+    useCase: 'Large properties or chains',
   },
 ];
 
@@ -210,125 +225,130 @@ export const MODULE_BUNDLES: ModuleBundle[] = [
 // ============================================================
 
 /**
- * Get all required dependencies for a module
+ * Get all modules that will be auto-enabled when enabling a module
+ * Returns the module + all its dependencies (recursively)
  */
-export function getRequiredDependencies(moduleId: ModuleId): ModuleId[] {
-  const config = MODULE_DEPENDENCIES[moduleId];
-  return config.dependencies
-    .filter(d => d.type === 'required')
-    .map(d => d.moduleId);
-}
-
-/**
- * Get all enhancing dependencies for a module
- */
-export function getEnhancingDependencies(moduleId: ModuleId): ModuleId[] {
-  const config = MODULE_DEPENDENCIES[moduleId];
-  return config.dependencies
-    .filter(d => d.type === 'enhances')
-    .map(d => d.moduleId);
-}
-
-/**
- * Check if a module configuration is valid (all required deps are enabled)
- */
-export function validateModuleConfiguration(enabledModules: ModuleId[]): {
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-} {
-  const errors: string[] = [];
-  const warnings: string[] = [];
-
-  for (const moduleId of enabledModules) {
-    const config = MODULE_DEPENDENCIES[moduleId];
-    
-    for (const dep of config.dependencies) {
-      if (dep.type === 'required' && !enabledModules.includes(dep.moduleId)) {
-        errors.push(
-          `${config.name} requires ${MODULE_DEPENDENCIES[dep.moduleId].name}: ${dep.reason}`
-        );
-      }
-      
-      if (dep.type === 'enhances' && !enabledModules.includes(dep.moduleId)) {
-        warnings.push(
-          `${config.name} works better with ${MODULE_DEPENDENCIES[dep.moduleId].name}: ${dep.reason}`
-        );
+export function getModulesWithDependencies(moduleId: ModuleId): ModuleId[] {
+  const result = new Set<ModuleId>([moduleId]);
+  
+  const addDependencies = (id: ModuleId) => {
+    const deps = MODULE_REQUIRES[id];
+    for (const dep of deps) {
+      if (!result.has(dep)) {
+        result.add(dep);
+        addDependencies(dep); // Recursive for transitive deps
       }
     }
-  }
+  };
+  
+  addDependencies(moduleId);
+  return Array.from(result);
+}
 
+/**
+ * Get all modules that will be auto-enabled when enabling multiple modules
+ */
+export function expandModuleSelection(modules: ModuleId[]): ModuleId[] {
+  const result = new Set<ModuleId>();
+  
+  for (const moduleId of modules) {
+    const withDeps = getModulesWithDependencies(moduleId);
+    withDeps.forEach(m => result.add(m));
+  }
+  
+  return Array.from(result);
+}
+
+/**
+ * Check if a module can be disabled given current selection
+ * Returns { canDisable, blockedBy } 
+ */
+export function canDisableModule(
+  moduleId: ModuleId, 
+  currentModules: ModuleId[]
+): { canDisable: boolean; blockedBy: ModuleId[] } {
+  const blockedBy: ModuleId[] = [];
+  
+  // Check which enabled modules depend on this one
+  for (const otherId of currentModules) {
+    if (otherId === moduleId) continue;
+    
+    const deps = MODULE_REQUIRES[otherId];
+    if (deps.includes(moduleId)) {
+      blockedBy.push(otherId);
+    }
+  }
+  
   return {
-    valid: errors.length === 0,
-    errors,
-    warnings,
+    canDisable: blockedBy.length === 0,
+    blockedBy,
   };
 }
 
 /**
- * Get modules that would be affected if a module is disabled
+ * Get modules that would also be disabled (cascade)
+ * When disabling a base module, dependent modules must also be disabled
  */
-export function getAffectedModules(
-  moduleToDisable: ModuleId, 
-  enabledModules: ModuleId[]
-): { breaking: ModuleId[]; degraded: ModuleId[] } {
-  const breaking: ModuleId[] = [];
-  const degraded: ModuleId[] = [];
-
-  for (const moduleId of enabledModules) {
-    if (moduleId === moduleToDisable) continue;
-    
-    const config = MODULE_DEPENDENCIES[moduleId];
-    
-    for (const dep of config.dependencies) {
-      if (dep.moduleId === moduleToDisable) {
-        if (dep.type === 'required') {
-          breaking.push(moduleId);
-        } else {
-          degraded.push(moduleId);
-        }
+export function getCascadeDisable(
+  moduleId: ModuleId, 
+  currentModules: ModuleId[]
+): ModuleId[] {
+  const toDisable = new Set<ModuleId>([moduleId]);
+  
+  const findDependents = (id: ModuleId) => {
+    for (const otherId of currentModules) {
+      if (toDisable.has(otherId)) continue;
+      
+      const deps = MODULE_REQUIRES[otherId];
+      if (deps.includes(id)) {
+        toDisable.add(otherId);
+        findDependents(otherId); // Recursive
       }
     }
-  }
-
-  return { breaking, degraded };
+  };
+  
+  findDependents(moduleId);
+  return Array.from(toDisable);
 }
 
 /**
- * Suggest additional modules based on current selection
+ * Validate a module configuration
  */
-export function suggestModules(enabledModules: ModuleId[]): {
-  recommended: ModuleId[];
-  reasons: Record<ModuleId, string>;
+export function validateModuleConfiguration(modules: ModuleId[]): {
+  valid: boolean;
+  errors: string[];
 } {
-  const recommended: ModuleId[] = [];
-  const reasons: Record<string, string> = {};
-
-  for (const moduleId of enabledModules) {
-    const enhancing = getEnhancingDependencies(moduleId);
-    
-    for (const depId of enhancing) {
-      if (!enabledModules.includes(depId) && !recommended.includes(depId)) {
-        recommended.push(depId);
-        const dep = MODULE_DEPENDENCIES[moduleId].dependencies.find(d => d.moduleId === depId);
-        reasons[depId] = dep?.reason || 'Enhances functionality';
+  const errors: string[] = [];
+  
+  if (modules.length === 0) {
+    errors.push('At least one module must be enabled');
+    return { valid: false, errors };
+  }
+  
+  for (const moduleId of modules) {
+    const required = MODULE_REQUIRES[moduleId];
+    for (const dep of required) {
+      if (!modules.includes(dep)) {
+        const info = MODULE_DETAILS[moduleId];
+        const depInfo = MODULE_DETAILS[dep];
+        errors.push(`${info.shortName} requires ${depInfo.shortName}`);
       }
     }
   }
-
-  return { recommended, reasons: reasons as Record<ModuleId, string> };
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }
 
 /**
- * Auto-enable required dependencies
+ * Get a display-friendly dependency chain
  */
-export function autoEnableDependencies(selectedModules: ModuleId[]): ModuleId[] {
-  const result = new Set(selectedModules);
+export function getDependencyChain(moduleId: ModuleId): string {
+  const deps = MODULE_REQUIRES[moduleId];
+  if (deps.length === 0) return '';
   
-  for (const moduleId of selectedModules) {
-    const required = getRequiredDependencies(moduleId);
-    required.forEach(dep => result.add(dep));
-  }
-  
-  return Array.from(result);
+  const names = deps.map(d => MODULE_DETAILS[d].shortName);
+  return names.join(' → ');
 }

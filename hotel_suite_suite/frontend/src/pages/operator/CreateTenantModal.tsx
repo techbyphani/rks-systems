@@ -33,6 +33,13 @@ import {
   CURRENCY_OPTIONS,
   ALL_MODULES,
 } from '@/config/plans';
+import {
+  MODULE_DETAILS,
+  MODULE_BUNDLES,
+  getModulesWithDependencies,
+  canDisableModule,
+  validateModuleConfiguration,
+} from '@/config/moduleDependencies';
 import type { ModuleId, CreateTenantDto, SubscriptionPlanId } from '@/types';
 
 const { Title, Text, Paragraph } = Typography;
@@ -60,6 +67,7 @@ export default function CreateTenantModal({ open, onClose, onSuccess }: CreateTe
     setSelectedPlan(planId);
     const plan = SUBSCRIPTION_PLANS.find(p => p.id === planId);
     if (plan) {
+      // Start with included modules (already expanded with dependencies in plan definition)
       setSelectedModules([...plan.includedModules]);
       form.setFieldValue('planId', planId);
     }
@@ -67,9 +75,37 @@ export default function CreateTenantModal({ open, onClose, onSuccess }: CreateTe
 
   const handleModuleToggle = (moduleId: ModuleId, checked: boolean) => {
     if (checked) {
-      setSelectedModules([...selectedModules, moduleId]);
+      // Auto-enable dependencies
+      const modulesWithDeps = getModulesWithDependencies(moduleId);
+      const newModules = Array.from(new Set([...selectedModules, ...modulesWithDeps]));
+      
+      // Notify if dependencies were added
+      const autoEnabled = modulesWithDeps.filter(m => m !== moduleId && !selectedModules.includes(m));
+      if (autoEnabled.length > 0) {
+        const names = autoEnabled.map(m => MODULE_DETAILS[m].shortName).join(', ');
+        message.info(`Also enabled: ${names} (required by ${MODULE_DETAILS[moduleId].shortName})`);
+      }
+      
+      setSelectedModules(newModules);
     } else {
+      // Check if can disable
+      const { canDisable, blockedBy } = canDisableModule(moduleId, selectedModules);
+      
+      if (!canDisable) {
+        const names = blockedBy.map(m => MODULE_DETAILS[m].shortName).join(', ');
+        message.warning(`Cannot disable: ${names} depends on ${MODULE_DETAILS[moduleId].shortName}`);
+        return;
+      }
+      
       setSelectedModules(selectedModules.filter(m => m !== moduleId));
+    }
+  };
+
+  const handleApplyBundle = (bundleId: string) => {
+    const bundle = MODULE_BUNDLES.find(b => b.id === bundleId);
+    if (bundle) {
+      setSelectedModules([...bundle.modules]);
+      message.success(`Applied "${bundle.name}" bundle`);
     }
   };
 
@@ -84,6 +120,12 @@ export default function CreateTenantModal({ open, onClose, onSuccess }: CreateTe
         }
         if (selectedModules.length === 0) {
           message.error('Please select at least one module');
+          return;
+        }
+        // Validate dependencies
+        const validation = validateModuleConfiguration(selectedModules);
+        if (!validation.valid) {
+          message.error(validation.errors[0]);
           return;
         }
       }
@@ -314,23 +356,39 @@ export default function CreateTenantModal({ open, onClose, onSuccess }: CreateTe
                 <Title level={5}>Configure Modules</Title>
                 <Alert
                   message={`${plan.name} plan includes ${plan.includedModules.length} modules`}
-                  description={
-                    plan.optionalModules.length > 0
-                      ? `You can also enable ${plan.optionalModules.length} optional modules`
-                      : 'All modules are included in this plan'
-                  }
+                  description="Dependencies are auto-enabled. Locked modules are required by other enabled modules."
                   type="info"
                   showIcon
                   style={{ marginBottom: 16 }}
                 />
 
+                {/* Quick Bundles */}
+                <div style={{ marginBottom: 16 }}>
+                  <Text type="secondary" style={{ marginRight: 8 }}>Quick setup:</Text>
+                  <Space wrap size={4}>
+                    {MODULE_BUNDLES.slice(0, 4).map(bundle => (
+                      <Button 
+                        key={bundle.id}
+                        size="small"
+                        type={bundle.recommended ? 'primary' : 'default'}
+                        ghost={bundle.recommended}
+                        onClick={() => handleApplyBundle(bundle.id)}
+                      >
+                        {bundle.name}
+                      </Button>
+                    ))}
+                  </Space>
+                </div>
+
                 <Row gutter={[12, 12]}>
                   {ALL_MODULES.map((moduleId) => {
                     const info = MODULE_INFO[moduleId];
+                    const details = MODULE_DETAILS[moduleId];
                     const isIncluded = plan.includedModules.includes(moduleId);
                     const isOptional = plan.optionalModules.includes(moduleId);
                     const isEnabled = selectedModules.includes(moduleId);
-                    const canToggle = isOptional || (plan.id === 'enterprise');
+                    const { canDisable, blockedBy } = canDisableModule(moduleId, selectedModules);
+                    const isLocked = isEnabled && !canDisable;
 
                     return (
                       <Col span={8} key={moduleId}>
@@ -344,24 +402,41 @@ export default function CreateTenantModal({ open, onClose, onSuccess }: CreateTe
                           <Space align="start">
                             <Checkbox
                               checked={isEnabled}
-                              disabled={!canToggle && isIncluded}
+                              disabled={isLocked}
                               onChange={(e) => handleModuleToggle(moduleId, e.target.checked)}
                             />
                             <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                                 <Text strong style={{ color: info.color }}>
                                   {moduleId.toUpperCase()}
                                 </Text>
-                                {isIncluded && !isOptional && (
-                                  <Tag color="green" style={{ fontSize: 10 }}>INCLUDED</Tag>
+                                {isLocked && (
+                                  <Tag color="orange" style={{ fontSize: 9 }}>LOCKED</Tag>
                                 )}
-                                {isOptional && (
-                                  <Tag color="orange" style={{ fontSize: 10 }}>OPTIONAL</Tag>
+                                {isIncluded && !isOptional && !isLocked && (
+                                  <Tag color="green" style={{ fontSize: 9 }}>INCLUDED</Tag>
+                                )}
+                                {isOptional && !isLocked && (
+                                  <Tag color="blue" style={{ fontSize: 9 }}>OPTIONAL</Tag>
                                 )}
                               </div>
                               <Text type="secondary" style={{ fontSize: 11 }}>
                                 {info.shortName}
                               </Text>
+                              {details.requires.length > 0 && (
+                                <div style={{ fontSize: 10, marginTop: 2 }}>
+                                  <Text type="secondary">
+                                    Needs: {details.requires.map(d => d.toUpperCase()).join(', ')}
+                                  </Text>
+                                </div>
+                              )}
+                              {isLocked && blockedBy.length > 0 && (
+                                <div style={{ fontSize: 10, marginTop: 2 }}>
+                                  <Text type="warning">
+                                    Used by: {blockedBy.map(d => d.toUpperCase()).join(', ')}
+                                  </Text>
+                                </div>
+                              )}
                             </div>
                           </Space>
                         </Card>
