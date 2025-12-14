@@ -24,10 +24,20 @@ const sourceDistribution: ReservationSource[] = [
 
 export const mockReservations: Reservation[] = [];
 
+// Safety check - ensure we have data to work with
+const guestCount = mockGuests?.length || 0;
+const roomTypeCount = mockRoomTypes?.length || 0;
+
+if (guestCount === 0 || roomTypeCount === 0) {
+  console.warn('Missing mock data: guests=', guestCount, 'roomTypes=', roomTypeCount);
+}
+
 // Generate past reservations (checked out)
 for (let i = 1; i <= 30; i++) {
-  const guest = mockGuests[Math.floor(Math.random() * 10)];
-  const roomType = mockRoomTypes[Math.floor(Math.random() * mockRoomTypes.length)];
+  const guest = mockGuests[Math.floor(Math.random() * Math.min(10, guestCount))];
+  const roomType = mockRoomTypes[Math.floor(Math.random() * roomTypeCount)];
+  
+  if (!guest || !roomType) continue;
   const checkInDate = subtractDays(today, Math.floor(Math.random() * 30) + 5);
   const nights = Math.floor(Math.random() * 4) + 1;
   const checkOutDate = addDays(checkInDate, nights);
@@ -62,8 +72,10 @@ for (let i = 1; i <= 30; i++) {
 
 // Generate current reservations (checked in)
 for (let i = 31; i <= 55; i++) {
-  const guest = mockGuests[Math.floor(Math.random() * mockGuests.length)];
-  const roomType = mockRoomTypes[Math.floor(Math.random() * mockRoomTypes.length)];
+  const guest = mockGuests[Math.floor(Math.random() * guestCount)];
+  const roomType = mockRoomTypes[Math.floor(Math.random() * roomTypeCount)];
+  
+  if (!guest || !roomType) continue;
   const checkInDate = subtractDays(today, Math.floor(Math.random() * 3));
   const nights = Math.floor(Math.random() * 5) + 2;
   const checkOutDate = addDays(checkInDate, nights);
@@ -97,8 +109,10 @@ for (let i = 31; i <= 55; i++) {
 
 // Generate future reservations (confirmed)
 for (let i = 56; i <= 85; i++) {
-  const guest = mockGuests[Math.floor(Math.random() * mockGuests.length)];
-  const roomType = mockRoomTypes[Math.floor(Math.random() * mockRoomTypes.length)];
+  const guest = mockGuests[Math.floor(Math.random() * guestCount)];
+  const roomType = mockRoomTypes[Math.floor(Math.random() * roomTypeCount)];
+  
+  if (!guest || !roomType) continue;
   const checkInDate = addDays(today, Math.floor(Math.random() * 30) + 1);
   const nights = Math.floor(Math.random() * 4) + 1;
   const checkOutDate = addDays(checkInDate, nights);
@@ -130,8 +144,10 @@ for (let i = 56; i <= 85; i++) {
 
 // Today's arrivals
 for (let i = 86; i <= 95; i++) {
-  const guest = mockGuests[Math.floor(Math.random() * mockGuests.length)];
-  const roomType = mockRoomTypes[Math.floor(Math.random() * mockRoomTypes.length)];
+  const guest = mockGuests[Math.floor(Math.random() * guestCount)];
+  const roomType = mockRoomTypes[Math.floor(Math.random() * roomTypeCount)];
+  
+  if (!guest || !roomType) continue;
   const nights = Math.floor(Math.random() * 3) + 1;
   
   mockReservations.push({
@@ -162,8 +178,10 @@ for (let i = 86; i <= 95; i++) {
 
 // Today's departures
 for (let i = 96; i <= 105; i++) {
-  const guest = mockGuests[Math.floor(Math.random() * mockGuests.length)];
-  const roomType = mockRoomTypes[Math.floor(Math.random() * mockRoomTypes.length)];
+  const guest = mockGuests[Math.floor(Math.random() * guestCount)];
+  const roomType = mockRoomTypes[Math.floor(Math.random() * roomTypeCount)];
+  
+  if (!guest || !roomType) continue;
   const nights = Math.floor(Math.random() * 3) + 1;
   const checkInDate = subtractDays(today, nights);
   
@@ -197,8 +215,10 @@ for (let i = 96; i <= 105; i++) {
 
 // Cancelled reservations
 for (let i = 106; i <= 110; i++) {
-  const guest = mockGuests[Math.floor(Math.random() * mockGuests.length)];
-  const roomType = mockRoomTypes[Math.floor(Math.random() * mockRoomTypes.length)];
+  const guest = mockGuests[Math.floor(Math.random() * guestCount)];
+  const roomType = mockRoomTypes[Math.floor(Math.random() * roomTypeCount)];
+  
+  if (!guest || !roomType) continue;
   const checkInDate = addDays(today, Math.floor(Math.random() * 14));
   const nights = Math.floor(Math.random() * 3) + 1;
   

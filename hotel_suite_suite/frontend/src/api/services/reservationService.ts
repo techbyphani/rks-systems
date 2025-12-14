@@ -4,8 +4,15 @@ import { mockGuests } from '../mockData/guests';
 import { mockRoomTypes } from '../mockData/roomTypes';
 import { delay, generateId, now, paginate, calculateNights } from '../helpers';
 
-// In-memory store
-let reservations = [...mockReservations];
+// In-memory store - ensure it's always a valid array
+let reservations: Reservation[] = [];
+
+try {
+  reservations = [...(mockReservations || [])];
+} catch (e) {
+  console.error('Failed to load mock reservations:', e);
+  reservations = [];
+}
 
 const today = new Date().toISOString().split('T')[0];
 
@@ -47,6 +54,12 @@ export const reservationService = {
    */
   async getAll(filters: ReservationFilters = {}): Promise<PaginatedResponse<Reservation>> {
     await delay(300);
+    
+    // Ensure reservations is always an array
+    if (!Array.isArray(reservations)) {
+      console.error('Reservations is not an array:', typeof reservations);
+      return { data: [], total: 0, page: 1, pageSize: 10, totalPages: 0 };
+    }
     
     let result = [...reservations];
     
