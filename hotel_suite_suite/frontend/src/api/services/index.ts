@@ -33,3 +33,6 @@ export type { TaskFilters, CreateTaskDto } from './taskService';
 // Employee & Attendance Service (AMS)
 export { employeeService, shiftService, attendanceService, leaveService } from './employeeService';
 export type { EmployeeFilters } from './employeeService';
+
+// Workflow Service (Cross-module operations)
+export { workflowService } from './workflowService';

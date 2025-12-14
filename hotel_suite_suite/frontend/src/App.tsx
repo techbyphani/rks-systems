@@ -9,6 +9,7 @@ import RequireAuth from '@/components/navigation/RequireAuth'
 import LoginPage from '@/pages/login'
 import { OperatorLayout, OperatorOverview, TenantsPage, UserTemplatesPage } from '@/pages/operator'
 import { AppProvider } from '@/context/AppContext'
+import { NotificationProvider } from '@/context/NotificationContext'
 
 // Module Dashboards
 import {
@@ -65,6 +66,7 @@ function App() {
         }}
       >
         <AppProvider>
+          <NotificationProvider>
           <BrowserRouter>
             <Routes>
               {/* Public Routes */}
@@ -241,6 +243,7 @@ function App() {
             </Routes>
           </BrowserRouter>
           <Toaster position="top-right" />
+          </NotificationProvider>
         </AppProvider>
       </ConfigProvider>
     </HelmetProvider>

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Space, Select, Tag, Statistic, Button, message, Table, Badge, Steps, Dropdown } from 'antd';
-import { PlusOutlined, ReloadOutlined, EyeOutlined, MoreOutlined, CheckOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Space, Select, Tag, Statistic, Button, message, Table, Badge, Steps, Dropdown, Modal } from 'antd';
+import { PlusOutlined, ReloadOutlined, EyeOutlined, MoreOutlined, CheckOutlined, DollarOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { PageHeader, StatusTag } from '@/components/shared';
-import { orderService } from '@/api';
+import { orderService, workflowService } from '@/api';
+import { useNotifications } from '@/context/NotificationContext';
 import type { Order, OrderStatus, PaginatedResponse } from '@/types';
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
@@ -21,6 +22,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 
 export default function OrdersPage() {
   const navigate = useNavigate();
+  const { addNotification } = useNotifications();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PaginatedResponse<Order> | null>(null);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>();
@@ -49,6 +51,47 @@ export default function OrdersPage() {
     } catch (error) {
       message.error('Failed to update order');
     }
+  };
+
+  const handleCompleteAndCharge = async (order: Order) => {
+    if (!order.guestId) {
+      message.warning('Cannot post charge: No guest associated with this order');
+      return;
+    }
+
+    Modal.confirm({
+      title: 'Complete Order & Post to Folio',
+      content: `Post ₹${order.totalAmount.toLocaleString('en-IN')} to guest folio and mark order as complete?`,
+      okText: 'Complete & Charge',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          // Post charge to guest folio
+          await workflowService.postCrossModuleCharge(order.guestId!, {
+            category: 'food_beverage',
+            description: `Order ${order.orderNumber} - ${order.items?.length || 0} items`,
+            amount: order.totalAmount,
+            referenceType: 'order',
+            referenceId: order.id,
+          });
+
+          // Update order status
+          await orderService.updateStatus(order.id, 'completed');
+
+          message.success('Order completed and charged to folio');
+          addNotification({
+            type: 'success',
+            title: 'Order Charged',
+            message: `₹${order.totalAmount.toLocaleString('en-IN')} posted to guest folio`,
+            module: 'oms',
+          });
+
+          loadOrders();
+        } catch (error: any) {
+          message.error(error.message || 'Failed to post charge');
+        }
+      },
+    });
   };
 
   const activeOrders = data?.data.filter((o) => !['completed', 'cancelled'].includes(o.status)).length || 0;
@@ -132,7 +175,10 @@ export default function OrdersPage() {
               ...(record.status === 'confirmed' ? [{ key: 'prepare', label: 'Start Preparing', onClick: () => handleStatusUpdate(record.id, 'preparing') }] : []),
               ...(record.status === 'preparing' ? [{ key: 'ready', label: 'Mark Ready', onClick: () => handleStatusUpdate(record.id, 'ready') }] : []),
               ...(record.status === 'ready' ? [{ key: 'deliver', label: 'Out for Delivery', onClick: () => handleStatusUpdate(record.id, 'delivering') }] : []),
-              ...(record.status === 'delivering' ? [{ key: 'complete', label: 'Complete', onClick: () => handleStatusUpdate(record.id, 'completed') }] : []),
+              ...(record.status === 'delivering' ? [
+                { key: 'complete', label: 'Complete', onClick: () => handleStatusUpdate(record.id, 'completed') },
+                ...(record.guestId ? [{ key: 'charge', icon: <DollarOutlined />, label: 'Complete & Charge to Folio', onClick: () => handleCompleteAndCharge(record) }] : []),
+              ] : []),
             ],
           }}
           trigger={['click']}

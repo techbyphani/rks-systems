@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Modal, Form, Select, Input, Descriptions, Space, Tag, message, Alert, Typography } from 'antd';
-import { LoginOutlined } from '@ant-design/icons';
+import { Modal, Form, Select, Input, Descriptions, Space, Tag, message, Alert, Typography, Checkbox, Divider } from 'antd';
+import { LoginOutlined, FileTextOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { reservationService } from '@/api';
+import { workflowService } from '@/api';
+import { useNotifications } from '@/context/NotificationContext';
 import type { Reservation, Room } from '@/types';
-import { StatusTag } from '@/components/shared';
 
 const { Text } = Typography;
 
@@ -25,20 +25,34 @@ export default function CheckInModal({
 }: CheckInModalProps) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const { addNotification } = useNotifications();
 
   const handleCheckIn = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
       
-      await reservationService.checkIn(reservation.id, {
-        roomId: values.roomId,
-        notes: values.notes,
+      // Use workflow service for integrated check-in
+      // This will: 1) Check-in reservation, 2) Assign room, 3) Create folio
+      const result = await workflowService.performCheckIn(
+        reservation.id,
+        values.roomId,
+        values.notes
+      );
+      
+      message.success(`Guest checked into Room ${result.room.roomNumber}`);
+      
+      addNotification({
+        type: 'success',
+        title: 'Check-In Complete',
+        message: `${reservation.guest?.firstName} ${reservation.guest?.lastName} → Room ${result.room.roomNumber}`,
+        module: 'crs',
+        actionUrl: `/suite/crs/reservations/${reservation.id}`,
       });
       
       onSuccess();
-    } catch (error) {
-      message.error('Failed to check in guest');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to check in guest');
     } finally {
       setLoading(false);
     }
@@ -150,6 +164,22 @@ export default function CheckInModal({
             placeholder="Any notes for this check-in (e.g., special arrangements, guest requests)..."
           />
         </Form.Item>
+        
+        <Divider />
+        
+        <Alert
+          message="Check-In Workflow"
+          description={
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              <li>Reservation status will be updated to "Checked In"</li>
+              <li>Room will be assigned and marked as occupied</li>
+              <li>Guest folio will be created with room charges</li>
+            </ul>
+          }
+          type="info"
+          icon={<FileTextOutlined />}
+          showIcon
+        />
       </Form>
 
       {reservation.specialRequests && (

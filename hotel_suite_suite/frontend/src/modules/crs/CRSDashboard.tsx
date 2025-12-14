@@ -1,5 +1,12 @@
-import { Card, Col, List, Row, Space, Statistic, Tag, Typography } from 'antd'
-import { CalendarOutlined, TeamOutlined, WifiOutlined } from '@ant-design/icons'
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, Col, List, Row, Space, Statistic, Tag, Typography, Button, Spin, Progress } from 'antd'
+import { CalendarOutlined, TeamOutlined, WifiOutlined, PlusOutlined, LoginOutlined, LogoutOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs';
+import { reservationService, guestService } from '@/api';
+import { useNotifications } from '@/context/NotificationContext';
+import { StatusTag } from '@/components/shared';
+import type { Reservation } from '@/types';
 
 const { Title, Text } = Typography
 
@@ -10,41 +17,116 @@ const channelMix = [
   { channel: 'Walk-in', percentage: 7, status: 'Down 2 bookings' },
 ]
 
-const arrivals = [
-  { guest: 'Isha Menon', time: '14:30', room: 'Deluxe 1204', status: 'VIP' },
-  { guest: 'Oliver Grant', time: '16:15', room: 'Suite 210', status: 'Airport pickup' },
-  { guest: 'Liu Wei', time: '18:00', room: 'Premier 804', status: 'Dinner reservation' },
-]
+interface DashboardStats {
+  todaysArrivals: number;
+  todaysDepartures: number;
+  inHouse: number;
+  totalReservations: number;
+  confirmedUpcoming: number;
+}
 
 export default function CRSDashboard() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [arrivals, setArrivals] = useState<Reservation[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [statsData, arrivalsData] = await Promise.all([
+        reservationService.getStats(),
+        reservationService.getTodaysArrivals(),
+      ]);
+      setStats(statsData);
+      setArrivals(arrivalsData.slice(0, 5));
+    } catch (error) {
+      console.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 100 }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <div>
-        <Title level={3}>Customer Reservation System</Title>
-        <Text type="secondary">
-          Centralized control for demand generation, booking pace, and arrival preparedness.
-        </Text>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <Title level={3}>Customer Reservation System</Title>
+          <Text type="secondary">
+            Centralized control for demand generation, booking pace, and arrival preparedness.
+          </Text>
+        </div>
+        <Space>
+          <Button icon={<PlusOutlined />} type="primary" onClick={() => navigate('/suite/crs/reservations')}>
+            New Reservation
+          </Button>
+        </Space>
       </div>
 
       <Row gutter={[16, 16]}>
-        <Col xs={24} md={8}>
-          <Card>
-            <Statistic title="Active Reservations" value={132} suffix="stays" valueStyle={{ color: '#1677ff' }} />
-            <Tag color="blue" style={{ marginTop: 12 }}>
-              +12 since yesterday
-            </Tag>
+        <Col xs={24} sm={12} lg={6}>
+          <Card hoverable onClick={() => navigate('/suite/crs/reservations')}>
+            <Statistic 
+              title="Today's Arrivals" 
+              value={stats?.todaysArrivals || 0} 
+              suffix="guests" 
+              valueStyle={{ color: '#52c41a' }}
+              prefix={<LoginOutlined />}
+            />
+            <Progress percent={75} showInfo={false} strokeColor="#52c41a" style={{ marginTop: 8 }} />
+            <Text type="secondary" style={{ fontSize: 12 }}>0 checked in so far</Text>
           </Card>
         </Col>
-        <Col xs={24} md={8}>
-          <Card>
-            <Statistic title="Pace vs Target" value={108} suffix="%" valueStyle={{ color: '#52c41a' }} />
-            <Text type="secondary">Next 7 days pickup: 42 rooms</Text>
+        <Col xs={24} sm={12} lg={6}>
+          <Card hoverable onClick={() => navigate('/suite/crs/reservations')}>
+            <Statistic 
+              title="Today's Departures" 
+              value={stats?.todaysDepartures || 0} 
+              suffix="guests" 
+              valueStyle={{ color: '#1890ff' }}
+              prefix={<LogoutOutlined />}
+            />
+            <Progress percent={50} showInfo={false} strokeColor="#1890ff" style={{ marginTop: 8 }} />
+            <Text type="secondary" style={{ fontSize: 12 }}>0 checked out so far</Text>
           </Card>
         </Col>
-        <Col xs={24} md={8}>
-          <Card>
-            <Statistic title="Cancellation Risk" value={8.4} suffix="%" valueStyle={{ color: '#fa8c16' }} />
-            <Text type="secondary">Monitor OTA bookings with flexible policy</Text>
+        <Col xs={24} sm={12} lg={6}>
+          <Card hoverable onClick={() => navigate('/suite/crs/reservations')}>
+            <Statistic 
+              title="In-House" 
+              value={stats?.inHouse || 0} 
+              suffix="guests" 
+              valueStyle={{ color: '#722ed1' }}
+              prefix={<TeamOutlined />}
+            />
+            <Text type="secondary" style={{ marginTop: 8, display: 'block', fontSize: 12 }}>
+              {stats?.confirmedUpcoming || 0} upcoming confirmed
+            </Text>
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card hoverable onClick={() => navigate('/suite/crs/reservations')}>
+            <Statistic 
+              title="Total Reservations" 
+              value={stats?.totalReservations || 0} 
+              valueStyle={{ color: '#1677ff' }}
+              prefix={<CalendarOutlined />}
+            />
+            <Text type="secondary" style={{ marginTop: 8, display: 'block', fontSize: 12 }}>
+              All time bookings
+            </Text>
           </Card>
         </Col>
       </Row>
@@ -60,52 +142,114 @@ export default function CRSDashboard() {
                     title={item.channel}
                     description={<Text type="secondary">{item.status}</Text>}
                   />
-                  <Tag color="blue">{item.percentage}%</Tag>
-                </List.Item>
-              )}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} lg={10}>
-          <Card title="Today's Arrivals" extra={<CalendarOutlined />}>
-            <List
-              dataSource={arrivals}
-              renderItem={(arrival) => (
-                <List.Item>
-                  <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                    <Space align="center" style={{ justifyContent: 'space-between' }}>
-                      <Text strong>{arrival.guest}</Text>
-                      <Tag color="geekblue">{arrival.status}</Tag>
-                    </Space>
-                    <Text type="secondary">
-                      {arrival.time} · {arrival.room}
-                    </Text>
+                  <Space>
+                    <Progress 
+                      type="circle" 
+                      percent={item.percentage} 
+                      size={40}
+                      strokeColor="#1890ff"
+                    />
                   </Space>
                 </List.Item>
               )}
             />
           </Card>
         </Col>
+        <Col xs={24} lg={10}>
+          <Card 
+            title="Today's Arrivals" 
+            extra={
+              <Button type="link" onClick={() => navigate('/suite/crs/reservations')}>
+                View All
+              </Button>
+            }
+          >
+            {arrivals.length > 0 ? (
+              <List
+                dataSource={arrivals}
+                renderItem={(arrival) => (
+                  <List.Item
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/suite/crs/reservations/${arrival.id}`)}
+                  >
+                    <List.Item.Meta
+                      title={
+                        <Space>
+                          <Text strong>
+                            {arrival.guest?.firstName} {arrival.guest?.lastName}
+                          </Text>
+                          {arrival.guest?.vipStatus !== 'none' && (
+                            <Tag color="gold">{arrival.guest?.vipStatus?.toUpperCase()}</Tag>
+                          )}
+                        </Space>
+                      }
+                      description={
+                        <Space split="·">
+                          <Text type="secondary">{arrival.roomType?.name}</Text>
+                          <Text type="secondary">{arrival.nights} nights</Text>
+                        </Space>
+                      }
+                    />
+                    <StatusTag status={arrival.status} type="reservation" />
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: 24 }}>
+                <Text type="secondary">No arrivals scheduled for today</Text>
+              </div>
+            )}
+          </Card>
+        </Col>
       </Row>
 
-      <Card title="Pipeline Highlights" extra={<TeamOutlined />}>
-        <List
-          grid={{ gutter: 16, xs: 1, sm: 2, md: 4 }}
-          dataSource={[
-            { label: 'Group Inquiries', value: 5 },
-            { label: 'Waitlisted', value: 11 },
-            { label: 'Upsell Opportunities', value: 18 },
-            { label: 'Pending Approvals', value: 6 },
-          ]}
-          renderItem={(item) => (
-            <List.Item>
-              <Card bordered={false} style={{ textAlign: 'center' }}>
-                <Statistic value={item.value} valueStyle={{ color: '#722ed1' }} />
-                <Text type="secondary">{item.label}</Text>
-              </Card>
-            </List.Item>
-          )}
-        />
+      <Card title="Quick Actions">
+        <Row gutter={[16, 16]}>
+          <Col xs={12} sm={6}>
+            <Card 
+              size="small" 
+              hoverable 
+              style={{ textAlign: 'center' }}
+              onClick={() => navigate('/suite/crs/reservations')}
+            >
+              <CalendarOutlined style={{ fontSize: 24, color: '#1890ff', marginBottom: 8 }} />
+              <div>Reservations</div>
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card 
+              size="small" 
+              hoverable 
+              style={{ textAlign: 'center' }}
+              onClick={() => navigate('/suite/crs/guests')}
+            >
+              <TeamOutlined style={{ fontSize: 24, color: '#52c41a', marginBottom: 8 }} />
+              <div>Guests</div>
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card 
+              size="small" 
+              hoverable 
+              style={{ textAlign: 'center' }}
+              onClick={() => navigate('/suite/crs/calendar')}
+            >
+              <CalendarOutlined style={{ fontSize: 24, color: '#722ed1', marginBottom: 8 }} />
+              <div>Calendar</div>
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card 
+              size="small" 
+              hoverable 
+              style={{ textAlign: 'center' }}
+              onClick={() => navigate('/suite/crs/reservations')}
+            >
+              <PlusOutlined style={{ fontSize: 24, color: '#fa8c16', marginBottom: 8 }} />
+              <div>New Booking</div>
+            </Card>
+          </Col>
+        </Row>
       </Card>
     </Space>
   )

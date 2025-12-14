@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Modal, Descriptions, Space, Tag, message, Alert, Typography, Divider, Button, Statistic, Row, Col } from 'antd';
-import { LogoutOutlined, PrinterOutlined, DollarOutlined } from '@ant-design/icons';
+import { LogoutOutlined, PrinterOutlined, DollarOutlined, FileTextOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { reservationService, billingService } from '@/api';
+import { billingService, workflowService } from '@/api';
+import { useNotifications } from '@/context/NotificationContext';
 import type { Reservation, Folio } from '@/types';
 
 const { Text, Title } = Typography;
@@ -23,6 +24,7 @@ export default function CheckOutModal({
   const [loading, setLoading] = useState(false);
   const [folio, setFolio] = useState<Folio | null>(null);
   const [folioLoading, setFolioLoading] = useState(false);
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     if (open && reservation.folioId) {
@@ -46,23 +48,32 @@ export default function CheckOutModal({
   const handleCheckOut = async () => {
     // Check if there's an outstanding balance
     if (folio && folio.balance > 0) {
-      Modal.confirm({
-        title: 'Outstanding Balance',
-        content: `There is an outstanding balance of ₹${folio.balance.toLocaleString('en-IN')}. Are you sure you want to proceed with check-out?`,
-        onOk: performCheckOut,
-      });
-    } else {
-      performCheckOut();
+      message.error(`Please settle outstanding balance of ₹${folio.balance.toLocaleString('en-IN')} before checkout.`);
+      return;
     }
+    performCheckOut();
   };
 
   const performCheckOut = async () => {
     setLoading(true);
     try {
-      await reservationService.checkOut(reservation.id);
+      // Use workflow service for integrated check-out
+      // This will: 1) Check-out reservation, 2) Release room, 3) Close folio
+      const result = await workflowService.performCheckOut(reservation.id);
+      
+      message.success(`Guest checked out from Room ${result.room?.roomNumber}`);
+      
+      addNotification({
+        type: 'success',
+        title: 'Check-Out Complete',
+        message: `${reservation.guest?.firstName} ${reservation.guest?.lastName} checked out`,
+        module: 'crs',
+        actionUrl: `/suite/crs/reservations/${reservation.id}`,
+      });
+      
       onSuccess();
-    } catch (error) {
-      message.error('Failed to check out guest');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to check out guest');
     } finally {
       setLoading(false);
     }
@@ -226,6 +237,23 @@ export default function CheckOutModal({
               showIcon
             />
           )}
+          
+          <Divider />
+          
+          <Alert
+            message="Check-Out Workflow"
+            description={
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                <li>Reservation status will be updated to "Checked Out"</li>
+                <li>Room will be released and marked for housekeeping</li>
+                <li>Guest folio will be closed</li>
+              </ul>
+            }
+            type="info"
+            icon={<FileTextOutlined />}
+            showIcon
+            style={{ marginTop: 16 }}
+          />
         </>
       ) : (
         <Alert

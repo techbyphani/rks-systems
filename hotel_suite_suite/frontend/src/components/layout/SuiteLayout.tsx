@@ -11,6 +11,8 @@ import {
 } from '@ant-design/icons'
 import { MODULES, MODULE_MAP, type ModuleId } from '@/config/modules'
 import { useAppContext } from '@/context/AppContext'
+import NotificationCenter from '@/components/shared/NotificationCenter'
+import QuickActions from '@/components/shared/QuickActions'
 import type { MenuProps } from 'antd'
 
 const { Header, Sider, Content } = Layout
@@ -231,12 +233,17 @@ export default function SuiteLayout() {
             )}
           </Space>
 
-          <Space size="large">
-            <div style={{ textAlign: 'right' }}>
-              <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-                {tenant.name}
-              </Text>
-            </div>
+          <Space size="middle">
+            <QuickActions />
+            <NotificationCenter />
+            
+            <div
+              style={{
+                height: 32,
+                width: 1,
+                background: '#f0f0f0',
+              }}
+            />
 
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
