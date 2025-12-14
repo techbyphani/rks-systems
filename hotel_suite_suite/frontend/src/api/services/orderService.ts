@@ -213,7 +213,7 @@ export const menuService = {
   /**
    * Get all menu items
    */
-  async getAllItems(filters: { category?: MenuItem['category']; isAvailable?: boolean } = {}): Promise<MenuItem[]> {
+  async getAll(filters: { category?: MenuItem['category']; isAvailable?: boolean } = {}): Promise<MenuItem[]> {
     await delay(200);
     
     let result = [...menuItems];
@@ -232,7 +232,7 @@ export const menuService = {
   /**
    * Get menu item by ID
    */
-  async getItemById(id: string): Promise<MenuItem | null> {
+  async getById(id: string): Promise<MenuItem | null> {
     await delay(200);
     return menuItems.find(mi => mi.id === id) || null;
   },
@@ -243,6 +243,47 @@ export const menuService = {
   async getAllMenus(): Promise<Menu[]> {
     await delay(200);
     return mockMenus;
+  },
+
+  /**
+   * Create menu item
+   */
+  async create(data: Partial<MenuItem>): Promise<MenuItem> {
+    await delay(400);
+    const newItem: MenuItem = {
+      id: generateId(),
+      name: data.name || '',
+      category: data.category || 'main_course',
+      price: data.price || 0,
+      description: data.description,
+      preparationTime: data.preparationTime || 15,
+      isVegetarian: data.isVegetarian || false,
+      isVegan: data.isVegan || false,
+      isGlutenFree: data.isGlutenFree || false,
+      isAvailable: data.isAvailable ?? true,
+      isActive: true,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    menuItems.unshift(newItem);
+    return newItem;
+  },
+
+  /**
+   * Update menu item
+   */
+  async update(id: string, data: Partial<MenuItem>): Promise<MenuItem> {
+    await delay(300);
+    const index = menuItems.findIndex(mi => mi.id === id);
+    if (index === -1) throw new Error('Menu item not found');
+    
+    menuItems[index] = {
+      ...menuItems[index],
+      ...data,
+      updatedAt: now(),
+    };
+    
+    return menuItems[index];
   },
 
   /**

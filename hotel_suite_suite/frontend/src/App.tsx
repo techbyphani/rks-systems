@@ -10,7 +10,7 @@ import LoginPage from '@/pages/login'
 import { OperatorLayout, OperatorOverview, TenantsPage, UserTemplatesPage } from '@/pages/operator'
 import { AppProvider } from '@/context/AppContext'
 
-// Module Dashboards (existing)
+// Module Dashboards
 import {
   CRSDashboard,
   RMSDashboard,
@@ -22,6 +22,33 @@ import {
   TMSDashboard,
   ASDashboard,
 } from '@/modules'
+
+// CRS Module Pages
+import { GuestsPage, GuestDetailPage, ReservationsPage, ReservationDetailPage, CalendarPage } from '@/modules/crs/pages'
+
+// RMS Module Pages
+import { RoomsPage, RoomDetailPage, RoomTypesPage, HousekeepingPage, MaintenancePage } from '@/modules/rms/pages'
+
+// BMS Module Pages
+import { FoliosPage, FolioDetailPage, PaymentsPage, InvoicesPage } from '@/modules/bms/pages'
+
+// OMS Module Pages
+import { OrdersPage, MenuPage } from '@/modules/oms/pages'
+
+// IMS Module Pages
+import { ItemsPage } from '@/modules/ims/pages'
+
+// SMS Module Pages
+import { VendorsPage, PurchaseOrdersPage } from '@/modules/sms/pages'
+
+// AMS Module Pages
+import { EmployeesPage, AttendancePage, LeavePage } from '@/modules/ams/pages'
+
+// TMS Module Pages
+import { TasksPage, MyTasksPage } from '@/modules/tms/pages'
+
+// AS Module Pages
+import { AccountsPage, TransactionsPage, ReportsPage } from '@/modules/as/pages'
 
 // Overview
 import OverviewPage from '@/pages/Overview'
@@ -59,11 +86,11 @@ function App() {
                       <ProtectedRoute moduleId="crs">
                         <Routes>
                           <Route index element={<CRSDashboard />} />
-                          <Route path="guests" element={<CRSDashboard />} />
-                          <Route path="guests/:id" element={<CRSDashboard />} />
-                          <Route path="reservations" element={<CRSDashboard />} />
-                          <Route path="reservations/:id" element={<CRSDashboard />} />
-                          <Route path="calendar" element={<CRSDashboard />} />
+                          <Route path="guests" element={<GuestsPage />} />
+                          <Route path="guests/:id" element={<GuestDetailPage />} />
+                          <Route path="reservations" element={<ReservationsPage />} />
+                          <Route path="reservations/:id" element={<ReservationDetailPage />} />
+                          <Route path="calendar" element={<CalendarPage />} />
                         </Routes>
                       </ProtectedRoute>
                     }
@@ -76,11 +103,11 @@ function App() {
                       <ProtectedRoute moduleId="rms">
                         <Routes>
                           <Route index element={<RMSDashboard />} />
-                          <Route path="rooms" element={<RMSDashboard />} />
-                          <Route path="rooms/:id" element={<RMSDashboard />} />
-                          <Route path="room-types" element={<RMSDashboard />} />
-                          <Route path="housekeeping" element={<RMSDashboard />} />
-                          <Route path="maintenance" element={<RMSDashboard />} />
+                          <Route path="rooms" element={<RoomsPage />} />
+                          <Route path="rooms/:id" element={<RoomDetailPage />} />
+                          <Route path="room-types" element={<RoomTypesPage />} />
+                          <Route path="housekeeping" element={<HousekeepingPage />} />
+                          <Route path="maintenance" element={<MaintenancePage />} />
                         </Routes>
                       </ProtectedRoute>
                     }
@@ -93,8 +120,8 @@ function App() {
                       <ProtectedRoute moduleId="ims">
                         <Routes>
                           <Route index element={<IMSDashboard />} />
-                          <Route path="items" element={<IMSDashboard />} />
-                          <Route path="items/:id" element={<IMSDashboard />} />
+                          <Route path="items" element={<ItemsPage />} />
+                          <Route path="items/:id" element={<ItemsPage />} />
                           <Route path="categories" element={<IMSDashboard />} />
                           <Route path="stock-alerts" element={<IMSDashboard />} />
                         </Routes>
@@ -109,9 +136,9 @@ function App() {
                       <ProtectedRoute moduleId="oms">
                         <Routes>
                           <Route index element={<OMSDashboard />} />
-                          <Route path="orders" element={<OMSDashboard />} />
-                          <Route path="orders/:id" element={<OMSDashboard />} />
-                          <Route path="menu" element={<OMSDashboard />} />
+                          <Route path="orders" element={<OrdersPage />} />
+                          <Route path="orders/:id" element={<OrdersPage />} />
+                          <Route path="menu" element={<MenuPage />} />
                           <Route path="pos" element={<OMSDashboard />} />
                         </Routes>
                       </ProtectedRoute>
@@ -125,10 +152,10 @@ function App() {
                       <ProtectedRoute moduleId="sms">
                         <Routes>
                           <Route index element={<SMSDashboard />} />
-                          <Route path="vendors" element={<SMSDashboard />} />
-                          <Route path="vendors/:id" element={<SMSDashboard />} />
-                          <Route path="purchase-orders" element={<SMSDashboard />} />
-                          <Route path="purchase-orders/:id" element={<SMSDashboard />} />
+                          <Route path="vendors" element={<VendorsPage />} />
+                          <Route path="vendors/:id" element={<VendorsPage />} />
+                          <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
+                          <Route path="purchase-orders/:id" element={<PurchaseOrdersPage />} />
                           <Route path="deliveries" element={<SMSDashboard />} />
                         </Routes>
                       </ProtectedRoute>
@@ -142,10 +169,10 @@ function App() {
                       <ProtectedRoute moduleId="bms">
                         <Routes>
                           <Route index element={<BMSDashboard />} />
-                          <Route path="folios" element={<BMSDashboard />} />
-                          <Route path="folios/:id" element={<BMSDashboard />} />
-                          <Route path="payments" element={<BMSDashboard />} />
-                          <Route path="invoices" element={<BMSDashboard />} />
+                          <Route path="folios" element={<FoliosPage />} />
+                          <Route path="folios/:id" element={<FolioDetailPage />} />
+                          <Route path="payments" element={<PaymentsPage />} />
+                          <Route path="invoices" element={<InvoicesPage />} />
                         </Routes>
                       </ProtectedRoute>
                     }
@@ -158,11 +185,11 @@ function App() {
                       <ProtectedRoute moduleId="ams">
                         <Routes>
                           <Route index element={<AMSDashboard />} />
-                          <Route path="employees" element={<AMSDashboard />} />
-                          <Route path="employees/:id" element={<AMSDashboard />} />
+                          <Route path="employees" element={<EmployeesPage />} />
+                          <Route path="employees/:id" element={<EmployeesPage />} />
                           <Route path="shifts" element={<AMSDashboard />} />
-                          <Route path="attendance" element={<AMSDashboard />} />
-                          <Route path="leave" element={<AMSDashboard />} />
+                          <Route path="attendance" element={<AttendancePage />} />
+                          <Route path="leave" element={<LeavePage />} />
                         </Routes>
                       </ProtectedRoute>
                     }
@@ -175,9 +202,9 @@ function App() {
                       <ProtectedRoute moduleId="tms">
                         <Routes>
                           <Route index element={<TMSDashboard />} />
-                          <Route path="tasks" element={<TMSDashboard />} />
-                          <Route path="tasks/:id" element={<TMSDashboard />} />
-                          <Route path="my-tasks" element={<TMSDashboard />} />
+                          <Route path="tasks" element={<TasksPage />} />
+                          <Route path="tasks/:id" element={<TasksPage />} />
+                          <Route path="my-tasks" element={<MyTasksPage />} />
                         </Routes>
                       </ProtectedRoute>
                     }
@@ -190,9 +217,9 @@ function App() {
                       <ProtectedRoute moduleId="as">
                         <Routes>
                           <Route index element={<ASDashboard />} />
-                          <Route path="accounts" element={<ASDashboard />} />
-                          <Route path="transactions" element={<ASDashboard />} />
-                          <Route path="reports" element={<ASDashboard />} />
+                          <Route path="accounts" element={<AccountsPage />} />
+                          <Route path="transactions" element={<TransactionsPage />} />
+                          <Route path="reports" element={<ReportsPage />} />
                         </Routes>
                       </ProtectedRoute>
                     }

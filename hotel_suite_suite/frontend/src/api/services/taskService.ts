@@ -240,4 +240,13 @@ export const taskService = {
       todaysDue: getTodaysTasks().length,
     };
   },
+
+  /**
+   * Get current user's tasks (mock)
+   */
+  async getMyTasks(): Promise<Task[]> {
+    await delay(200);
+    // Return tasks assigned to current user (mock: first 10 tasks)
+    return tasks.filter(t => t.assignedTo).slice(0, 10);
+  },
 };

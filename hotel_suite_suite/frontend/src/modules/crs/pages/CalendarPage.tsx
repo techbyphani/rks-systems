@@ -1,0 +1,364 @@
+import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Card,
+  Space,
+  Typography,
+  Button,
+  Select,
+  DatePicker,
+  Tag,
+  Tooltip,
+  Row,
+  Col,
+  Spin,
+  message,
+  Badge,
+} from 'antd';
+import {
+  LeftOutlined,
+  RightOutlined,
+  CalendarOutlined,
+  PlusOutlined,
+  UnorderedListOutlined,
+} from '@ant-design/icons';
+import dayjs, { Dayjs } from 'dayjs';
+import { PageHeader } from '@/components/shared';
+import { reservationService, roomService } from '@/api';
+import type { Reservation, RoomType } from '@/types';
+
+const { Text, Title } = Typography;
+
+interface CalendarDay {
+  date: Dayjs;
+  reservations: Reservation[];
+  arrivals: number;
+  departures: number;
+  stayovers: number;
+}
+
+export default function CalendarPage() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [currentMonth, setCurrentMonth] = useState(dayjs());
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [selectedRoomType, setSelectedRoomType] = useState<string | undefined>();
+
+  useEffect(() => {
+    loadData();
+  }, [currentMonth, selectedRoomType]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const startDate = currentMonth.startOf('month').format('YYYY-MM-DD');
+      const endDate = currentMonth.endOf('month').format('YYYY-MM-DD');
+      
+      const [reservationsData, roomTypesData] = await Promise.all([
+        reservationService.getByDateRange(startDate, endDate, selectedRoomType),
+        roomService.getRoomTypes(),
+      ]);
+      
+      setReservations(reservationsData);
+      setRoomTypes(roomTypesData);
+    } catch (error) {
+      message.error('Failed to load calendar data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calendarDays = useMemo(() => {
+    const days: CalendarDay[] = [];
+    const startOfMonth = currentMonth.startOf('month');
+    const endOfMonth = currentMonth.endOf('month');
+    const startOfCalendar = startOfMonth.startOf('week');
+    const endOfCalendar = endOfMonth.endOf('week');
+    
+    let day = startOfCalendar;
+    while (day.isBefore(endOfCalendar) || day.isSame(endOfCalendar, 'day')) {
+      const currentDay = day;
+      const dayReservations = reservations.filter((res) => {
+        const checkIn = dayjs(res.checkInDate);
+        const checkOut = dayjs(res.checkOutDate);
+        return (
+          currentDay.isSame(checkIn, 'day') ||
+          currentDay.isSame(checkOut, 'day') ||
+          (currentDay.isAfter(checkIn, 'day') && currentDay.isBefore(checkOut, 'day'))
+        );
+      });
+
+      const arrivals = reservations.filter((res) =>
+        dayjs(res.checkInDate).isSame(currentDay, 'day')
+      ).length;
+
+      const departures = reservations.filter((res) =>
+        dayjs(res.checkOutDate).isSame(currentDay, 'day')
+      ).length;
+
+      const stayovers = dayReservations.filter((res) => {
+        const checkIn = dayjs(res.checkInDate);
+        const checkOut = dayjs(res.checkOutDate);
+        return currentDay.isAfter(checkIn, 'day') && currentDay.isBefore(checkOut, 'day');
+      }).length;
+
+      days.push({
+        date: currentDay,
+        reservations: dayReservations,
+        arrivals,
+        departures,
+        stayovers,
+      });
+      day = day.add(1, 'day');
+    }
+    
+    return days;
+  }, [currentMonth, reservations]);
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(currentMonth.subtract(1, 'month'));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(currentMonth.add(1, 'month'));
+  };
+
+  const handleToday = () => {
+    setCurrentMonth(dayjs());
+  };
+
+  const getDayColor = (day: CalendarDay) => {
+    if (day.arrivals > 0 && day.departures > 0) return '#faad14';
+    if (day.arrivals > 0) return '#52c41a';
+    if (day.departures > 0) return '#1890ff';
+    if (day.stayovers > 0) return '#722ed1';
+    return undefined;
+  };
+
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  return (
+    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <PageHeader
+        title="Reservation Calendar"
+        subtitle="Visual overview of reservations, arrivals, and departures"
+        breadcrumbs={[
+          { label: 'CRS', path: '/suite/crs' },
+          { label: 'Calendar' },
+        ]}
+        actions={
+          <Space>
+            <Button icon={<UnorderedListOutlined />} onClick={() => navigate('/suite/crs/reservations')}>
+              List View
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/suite/crs/reservations')}>
+              New Reservation
+            </Button>
+          </Space>
+        }
+      />
+
+      <Card>
+        {/* Calendar Controls */}
+        <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+          <Col>
+            <Space>
+              <Button icon={<LeftOutlined />} onClick={handlePrevMonth} />
+              <Button icon={<RightOutlined />} onClick={handleNextMonth} />
+              <Button onClick={handleToday}>Today</Button>
+              <Title level={4} style={{ margin: 0 }}>
+                {currentMonth.format('MMMM YYYY')}
+              </Title>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Select
+                placeholder="All Room Types"
+                allowClear
+                style={{ width: 200 }}
+                value={selectedRoomType}
+                onChange={setSelectedRoomType}
+                options={roomTypes.map((rt) => ({
+                  label: rt.name,
+                  value: rt.id,
+                }))}
+              />
+            </Space>
+          </Col>
+        </Row>
+
+        {/* Legend */}
+        <Row style={{ marginBottom: 16 }}>
+          <Space size="large">
+            <Space>
+              <Badge color="#52c41a" />
+              <Text type="secondary">Arrivals</Text>
+            </Space>
+            <Space>
+              <Badge color="#1890ff" />
+              <Text type="secondary">Departures</Text>
+            </Space>
+            <Space>
+              <Badge color="#faad14" />
+              <Text type="secondary">Both</Text>
+            </Space>
+            <Space>
+              <Badge color="#722ed1" />
+              <Text type="secondary">In-house</Text>
+            </Space>
+          </Space>
+        </Row>
+
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 60 }}>
+            <Spin size="large" />
+          </div>
+        ) : (
+          <>
+            {/* Week Days Header */}
+            <Row
+              gutter={[1, 1]}
+              style={{
+                background: '#fafafa',
+                borderBottom: '1px solid #f0f0f0',
+              }}
+            >
+              {weekDays.map((day) => (
+                <Col
+                  key={day}
+                  span={24 / 7}
+                  style={{
+                    textAlign: 'center',
+                    padding: '8px 0',
+                    fontWeight: 600,
+                  }}
+                >
+                  {day}
+                </Col>
+              ))}
+            </Row>
+
+            {/* Calendar Grid */}
+            <div style={{ border: '1px solid #f0f0f0' }}>
+              {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, weekIndex) => (
+                <Row key={weekIndex} gutter={[1, 1]}>
+                  {calendarDays.slice(weekIndex * 7, (weekIndex + 1) * 7).map((day) => {
+                    const isCurrentMonth = day.date.month() === currentMonth.month();
+                    const isToday = day.date.isSame(dayjs(), 'day');
+                    const dayColor = getDayColor(day);
+
+                    return (
+                      <Col
+                        key={day.date.format('YYYY-MM-DD')}
+                        span={24 / 7}
+                        style={{
+                          minHeight: 100,
+                          padding: 8,
+                          background: isToday
+                            ? '#e6f7ff'
+                            : isCurrentMonth
+                            ? '#fff'
+                            : '#fafafa',
+                          borderRight: '1px solid #f0f0f0',
+                          borderBottom: '1px solid #f0f0f0',
+                          opacity: isCurrentMonth ? 1 : 0.5,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            strong={isToday}
+                            style={{
+                              fontSize: 14,
+                              color: isToday ? '#1890ff' : undefined,
+                            }}
+                          >
+                            {day.date.date()}
+                          </Text>
+                          {dayColor && (
+                            <div
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                background: dayColor,
+                              }}
+                            />
+                          )}
+                        </div>
+
+                        <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                          {day.arrivals > 0 && (
+                            <Tooltip title={`${day.arrivals} arrival(s)`}>
+                              <Tag color="green" style={{ fontSize: 10, margin: 0 }}>
+                                ↓ {day.arrivals} IN
+                              </Tag>
+                            </Tooltip>
+                          )}
+                          {day.departures > 0 && (
+                            <Tooltip title={`${day.departures} departure(s)`}>
+                              <Tag color="blue" style={{ fontSize: 10, margin: 0 }}>
+                                ↑ {day.departures} OUT
+                              </Tag>
+                            </Tooltip>
+                          )}
+                          {day.stayovers > 0 && (
+                            <Tooltip title={`${day.stayovers} in-house`}>
+                              <Tag color="purple" style={{ fontSize: 10, margin: 0 }}>
+                                ● {day.stayovers}
+                              </Tag>
+                            </Tooltip>
+                          )}
+                        </Space>
+                      </Col>
+                    );
+                  })}
+                </Row>
+              ))}
+            </div>
+          </>
+        )}
+      </Card>
+
+      {/* Summary Stats */}
+      <Row gutter={16}>
+        <Col xs={24} sm={8}>
+          <Card size="small">
+            <Text type="secondary">Total Arrivals This Month</Text>
+            <Title level={3} style={{ margin: 0, color: '#52c41a' }}>
+              {reservations.filter((r) =>
+                dayjs(r.checkInDate).month() === currentMonth.month()
+              ).length}
+            </Title>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card size="small">
+            <Text type="secondary">Total Departures This Month</Text>
+            <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
+              {reservations.filter((r) =>
+                dayjs(r.checkOutDate).month() === currentMonth.month()
+              ).length}
+            </Title>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card size="small">
+            <Text type="secondary">Total Room Nights</Text>
+            <Title level={3} style={{ margin: 0, color: '#722ed1' }}>
+              {reservations.reduce((acc, r) => acc + r.nights, 0)}
+            </Title>
+          </Card>
+        </Col>
+      </Row>
+    </Space>
+  );
+}

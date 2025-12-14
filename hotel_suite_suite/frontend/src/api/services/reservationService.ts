@@ -186,26 +186,6 @@ export const reservationService = {
   },
 
   /**
-   * Check in a guest
-   */
-  async checkIn(id: string, roomId: string): Promise<Reservation> {
-    await delay(400);
-    
-    const index = reservations.findIndex(r => r.id === id);
-    if (index === -1) throw new Error('Reservation not found');
-    
-    reservations[index] = {
-      ...reservations[index],
-      status: 'checked_in',
-      roomId,
-      actualCheckIn: now(),
-      updatedAt: now(),
-    };
-    
-    return reservations[index];
-  },
-
-  /**
    * Check out a guest
    */
   async checkOut(id: string): Promise<Reservation> {
@@ -218,26 +198,6 @@ export const reservationService = {
       ...reservations[index],
       status: 'checked_out',
       actualCheckOut: now(),
-      updatedAt: now(),
-    };
-    
-    return reservations[index];
-  },
-
-  /**
-   * Cancel a reservation
-   */
-  async cancel(id: string, reason: string): Promise<Reservation> {
-    await delay(400);
-    
-    const index = reservations.findIndex(r => r.id === id);
-    if (index === -1) throw new Error('Reservation not found');
-    
-    reservations[index] = {
-      ...reservations[index],
-      status: 'cancelled',
-      cancelledAt: now(),
-      cancellationReason: reason,
       updatedAt: now(),
     };
     
@@ -291,5 +251,70 @@ export const reservationService = {
       totalReservations: reservations.length,
       confirmedUpcoming: reservations.filter(r => r.status === 'confirmed' && r.checkInDate > today).length,
     };
+  },
+
+  /**
+   * Get reservations by guest ID
+   */
+  async getByGuestId(guestId: string): Promise<Reservation[]> {
+    await delay(200);
+    return reservations
+      .filter(r => r.guestId === guestId)
+      .sort((a, b) => b.checkInDate.localeCompare(a.checkInDate));
+  },
+
+  /**
+   * Get reservations by date range (for calendar)
+   */
+  async getByDateRange(startDate: string, endDate: string, roomTypeId?: string): Promise<Reservation[]> {
+    await delay(300);
+    return reservations.filter(r => {
+      const matchesDateRange = r.checkInDate <= endDate && r.checkOutDate >= startDate;
+      const matchesRoomType = !roomTypeId || r.roomTypeId === roomTypeId;
+      return matchesDateRange && matchesRoomType;
+    });
+  },
+
+  /**
+   * Check in a guest
+   */
+  async checkIn(id: string, data: { roomId: string; notes?: string }): Promise<Reservation> {
+    await delay(400);
+    
+    const index = reservations.findIndex(r => r.id === id);
+    if (index === -1) throw new Error('Reservation not found');
+    
+    reservations[index] = {
+      ...reservations[index],
+      status: 'checked_in',
+      roomId: data.roomId,
+      actualCheckIn: now(),
+      internalNotes: data.notes 
+        ? `${reservations[index].internalNotes || ''}\n[Check-in] ${data.notes}`.trim()
+        : reservations[index].internalNotes,
+      updatedAt: now(),
+    };
+    
+    return reservations[index];
+  },
+
+  /**
+   * Cancel a reservation
+   */
+  async cancel(id: string, reason?: string): Promise<Reservation> {
+    await delay(400);
+    
+    const index = reservations.findIndex(r => r.id === id);
+    if (index === -1) throw new Error('Reservation not found');
+    
+    reservations[index] = {
+      ...reservations[index],
+      status: 'cancelled',
+      cancelledAt: now(),
+      cancellationReason: reason || 'Cancelled by user',
+      updatedAt: now(),
+    };
+    
+    return reservations[index];
   },
 };

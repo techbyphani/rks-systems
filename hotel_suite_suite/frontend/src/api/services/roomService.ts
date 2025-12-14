@@ -189,6 +189,22 @@ export const roomService = {
       occupancyRate: Math.round((occupied / (total - counts.out_of_order - counts.out_of_service)) * 100),
     };
   },
+
+  /**
+   * Get available rooms for a room type (alias)
+   */
+  async getAvailableRooms(roomTypeId: string): Promise<Room[]> {
+    await delay(200);
+    return rooms.filter(r => r.roomTypeId === roomTypeId && r.status === 'available');
+  },
+
+  /**
+   * Get all room types
+   */
+  async getRoomTypes(): Promise<RoomType[]> {
+    await delay(200);
+    return roomTypes.filter(rt => rt.isActive);
+  },
 };
 
 // Room Type Service
