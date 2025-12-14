@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Button, Layout, Menu, Space, Tag, Typography, Dropdown, Avatar } from 'antd'
+import { Button, Layout, Menu, Space, Tag, Typography, Dropdown, Avatar, Badge } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   MenuFoldOutlined,
@@ -8,9 +8,10 @@ import {
   LogoutOutlined,
   UserOutlined,
   SettingOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
-import { MODULES, MODULE_MAP, type ModuleId } from '@/config/modules'
-import { useAppContext } from '@/context/AppContext'
+import { MODULES } from '@/config/modules'
+import { useAppContext, useIsHotelAdmin } from '@/context/AppContext'
 import NotificationCenter from '@/components/shared/NotificationCenter'
 import QuickActions from '@/components/shared/QuickActions'
 import type { MenuProps } from 'antd'
@@ -18,8 +19,16 @@ import type { MenuProps } from 'antd'
 const { Header, Sider, Content } = Layout
 const { Title, Text } = Typography
 
+const ROLE_LABELS: Record<string, string> = {
+  hotel_admin: 'Hotel Admin',
+  manager: 'Manager',
+  supervisor: 'Supervisor',
+  staff: 'Staff',
+}
+
 export default function SuiteLayout() {
   const { tenant, user, allowedModules, logout } = useAppContext()
+  const isHotelAdmin = useIsHotelAdmin()
   const location = useLocation()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
@@ -66,8 +75,32 @@ export default function SuiteLayout() {
       }
     })
 
+    // Add admin section for hotel admins
+    if (isHotelAdmin) {
+      items.push({ type: 'divider' })
+      items.push({
+        key: '/suite/admin',
+        icon: <SettingOutlined />,
+        label: 'Administration',
+        children: [
+          {
+            key: '/suite/admin/users',
+            icon: <TeamOutlined />,
+            label: 'User Management',
+            onClick: () => navigate('/suite/admin/users'),
+          },
+          {
+            key: '/suite/admin/settings',
+            icon: <SettingOutlined />,
+            label: 'Hotel Settings',
+            onClick: () => navigate('/suite/admin/settings'),
+          },
+        ],
+      })
+    }
+
     return items
-  }, [allowedModules, navigate])
+  }, [allowedModules, isHotelAdmin, navigate])
 
   // Get selected keys based on current path
   const selectedKeys = useMemo(() => {
@@ -75,6 +108,11 @@ export default function SuiteLayout() {
     
     // Check for exact match first
     if (path === '/suite/overview') return ['/suite/overview']
+    
+    // Check admin paths
+    if (path.startsWith('/suite/admin')) {
+      return [path]
+    }
     
     // Check sub-menu paths
     for (const module of MODULES) {
@@ -96,6 +134,11 @@ export default function SuiteLayout() {
   // Get open keys for sub-menus
   const openKeys = useMemo(() => {
     const path = location.pathname
+    
+    if (path.startsWith('/suite/admin')) {
+      return ['/suite/admin']
+    }
+    
     for (const module of MODULES) {
       if (path.startsWith(module.path)) {
         return [module.path]
@@ -122,13 +165,20 @@ export default function SuiteLayout() {
       icon: <UserOutlined />,
       label: 'Profile',
     },
+    ...(isHotelAdmin ? [{
+      key: 'admin',
+      icon: <TeamOutlined />,
+      label: 'User Management',
+      onClick: () => navigate('/suite/admin/users'),
+    }] : []),
     {
       key: 'settings',
       icon: <SettingOutlined />,
       label: 'Settings',
+      onClick: () => isHotelAdmin ? navigate('/suite/admin/settings') : undefined,
     },
     {
-      type: 'divider',
+      type: 'divider' as const,
     },
     {
       key: 'logout',
@@ -141,6 +191,9 @@ export default function SuiteLayout() {
       },
     },
   ]
+
+  const userName = `${user.firstName} ${user.lastName}`
+  const userRole = ROLE_LABELS[user.role] || user.role
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -231,6 +284,12 @@ export default function SuiteLayout() {
                 <Text strong>{currentModule.name}</Text>
               </Space>
             )}
+            {location.pathname.startsWith('/suite/admin') && (
+              <Space>
+                <span style={{ color: '#722ed1' }}><SettingOutlined /></span>
+                <Text strong>Administration</Text>
+              </Space>
+            )}
           </Space>
 
           <Space size="middle">
@@ -247,13 +306,16 @@ export default function SuiteLayout() {
 
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
-                <Avatar
-                  style={{ backgroundColor: '#1890ff' }}
-                  icon={<UserOutlined />}
-                />
+                <Badge dot={isHotelAdmin} offset={[-2, 2]} color="purple">
+                  <Avatar
+                    style={{ backgroundColor: isHotelAdmin ? '#722ed1' : '#1890ff' }}
+                  >
+                    {user.firstName[0]}{user.lastName[0]}
+                  </Avatar>
+                </Badge>
                 <div style={{ lineHeight: 1.2 }}>
-                  <Text strong style={{ display: 'block' }}>{user.name}</Text>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{user.role}</Text>
+                  <Text strong style={{ display: 'block' }}>{userName}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>{userRole}</Text>
                 </div>
               </Space>
             </Dropdown>

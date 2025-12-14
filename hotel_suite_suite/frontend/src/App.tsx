@@ -54,6 +54,9 @@ import { AccountsPage, TransactionsPage, ReportsPage } from '@/modules/as/pages'
 // Overview
 import OverviewPage from '@/pages/Overview'
 
+// Hotel Admin Pages
+import { UserManagementPage, HotelSettingsPage } from '@/pages/admin'
+
 function App() {
   return (
     <HelmetProvider>
@@ -226,6 +229,10 @@ function App() {
                       </ProtectedRoute>
                     }
                   />
+
+                  {/* Hotel Admin Routes */}
+                  <Route path="/suite/admin/users" element={<UserManagementPage />} />
+                  <Route path="/suite/admin/settings" element={<HotelSettingsPage />} />
                 </Route>
               </Route>
 

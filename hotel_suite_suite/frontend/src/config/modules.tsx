@@ -20,17 +20,9 @@ import {
   ContainerOutlined,
 } from '@ant-design/icons'
 import type { ReactNode } from 'react'
+import type { ModuleId } from '@/types'
 
-export type ModuleId =
-  | 'crs'
-  | 'rms'
-  | 'ims'
-  | 'oms'
-  | 'sms'
-  | 'bms'
-  | 'ams'
-  | 'tms'
-  | 'as'
+export type { ModuleId }
 
 export interface SubMenuItem {
   key: string
