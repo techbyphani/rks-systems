@@ -122,7 +122,7 @@ export default function CheckInModal({
         </Descriptions.Item>
         <Descriptions.Item label="Guests">
           {reservation.adults} Adults
-          {reservation.children > 0 && `, ${reservation.children} Children`}
+          {reservation.childrenCount > 0 && `, ${reservation.childrenCount} Children`}
         </Descriptions.Item>
         <Descriptions.Item label="Total Amount">
           <Text strong>₹{reservation.totalAmount.toLocaleString('en-IN')}</Text>

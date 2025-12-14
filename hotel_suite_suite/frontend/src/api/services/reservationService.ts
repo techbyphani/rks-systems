@@ -153,7 +153,7 @@ export const reservationService = {
       checkOutDate: data.checkOutDate,
       nights,
       adults: data.adults,
-      children: data.children || 0,
+      childrenCount: data.children || 0,
       infants: data.infants || 0,
       status: 'confirmed',
       source: data.source,

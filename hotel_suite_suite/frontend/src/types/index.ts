@@ -115,7 +115,7 @@ export interface Reservation extends Timestamps {
   actualCheckOut?: string;
   nights: number;
   adults: number;
-  children: number;
+  childrenCount: number;  // renamed from 'children' to avoid Ant Design Table conflict
   infants: number;
   status: ReservationStatus;
   source: ReservationSource;

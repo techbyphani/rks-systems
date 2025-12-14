@@ -135,7 +135,7 @@ export default function ReservationsPage() {
       width: 100,
       render: (_, record) => (
         <span>
-          {record.adults}A {record.children > 0 && `${record.children}C`}
+          {record.adults}A {record.childrenCount > 0 && `${record.childrenCount}C`}
         </span>
       ),
     },

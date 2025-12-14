@@ -246,7 +246,7 @@ export default function ReservationDetailPage() {
               </Descriptions.Item>
               <Descriptions.Item label="Guests">
                 {reservation.adults} Adults
-                {reservation.children > 0 && `, ${reservation.children} Children`}
+                {reservation.childrenCount > 0 && `, ${reservation.childrenCount} Children`}
                 {reservation.infants > 0 && `, ${reservation.infants} Infants`}
               </Descriptions.Item>
             </Descriptions>
