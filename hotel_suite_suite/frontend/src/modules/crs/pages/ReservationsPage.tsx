@@ -27,9 +27,17 @@ export default function ReservationsPage() {
     setLoading(true);
     try {
       const result = await reservationService.getAll(filters);
-      setData(result);
+      // Ensure result.data is always an array
+      if (result && !Array.isArray(result.data)) {
+        console.error('reservationService.getAll returned non-array data:', result);
+        setData({ ...result, data: [] });
+      } else {
+        setData(result);
+      }
     } catch (error) {
+      console.error('Failed to load reservations:', error);
       message.error('Failed to load reservations');
+      setData({ data: [], total: 0, page: 1, pageSize: 10, totalPages: 0 });
     } finally {
       setLoading(false);
     }
@@ -231,7 +239,7 @@ export default function ReservationsPage() {
       <DataTable<Reservation>
         title="All Reservations"
         columns={columns}
-        dataSource={data?.data || []}
+        dataSource={Array.isArray(data?.data) ? data.data : []}
         rowKey="id"
         loading={loading}
         onSearch={handleSearch}

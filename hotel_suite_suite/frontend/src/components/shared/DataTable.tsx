@@ -70,6 +70,11 @@ export default function DataTable<T extends object>({
     </div>
   );
 
+  // Ensure dataSource is always an array
+  const safeDataSource = Array.isArray(tableProps.dataSource) 
+    ? tableProps.dataSource 
+    : [];
+
   const table = (
     <>
       {toolbar}
@@ -78,6 +83,7 @@ export default function DataTable<T extends object>({
         size="middle"
         scroll={{ x: 'max-content' }}
         {...tableProps}
+        dataSource={safeDataSource}
       />
     </>
   );
