@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Drawer,
   Switch,
@@ -14,15 +14,28 @@ import {
   Statistic,
   Row,
   Col,
+  Tooltip,
+  Modal,
 } from 'antd';
 import {
   SaveOutlined,
   AppstoreOutlined,
   TeamOutlined,
   WarningOutlined,
+  ExclamationCircleOutlined,
+  LinkOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { tenantService, tenantUserService } from '@/api';
 import { MODULE_INFO, SUBSCRIPTION_PLANS, ALL_MODULES } from '@/config/plans';
+import { 
+  validateModuleConfiguration, 
+  getAffectedModules, 
+  suggestModules,
+  autoEnableDependencies,
+  MODULE_BUNDLES,
+  MODULE_DEPENDENCIES,
+} from '@/config/moduleDependencies';
 import type { Tenant, ModuleId } from '@/types';
 
 const { Title, Text, Paragraph } = Typography;
@@ -37,7 +50,6 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
   const [enabledModules, setEnabledModules] = useState<ModuleId[]>([]);
   const [loading, setLoading] = useState(false);
   const [userCounts, setUserCounts] = useState<{ total: number; active: number } | null>(null);
-  const [affectedUsers, setAffectedUsers] = useState<number>(0);
 
   useEffect(() => {
     if (tenant) {
@@ -56,23 +68,71 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
     }
   };
 
+  // Validation
+  const validation = useMemo(() => {
+    return validateModuleConfiguration(enabledModules);
+  }, [enabledModules]);
+
+  // Suggestions
+  const suggestions = useMemo(() => {
+    return suggestModules(enabledModules);
+  }, [enabledModules]);
+
   const handleToggle = (moduleId: ModuleId, enabled: boolean) => {
-    let newModules: ModuleId[];
-    
     if (enabled) {
-      newModules = [...enabledModules, moduleId];
+      // Auto-enable required dependencies
+      const withDeps = autoEnableDependencies([...enabledModules, moduleId]);
+      
+      if (withDeps.length > enabledModules.length + 1) {
+        // Some dependencies were auto-added
+        const autoAdded = withDeps.filter(m => !enabledModules.includes(m) && m !== moduleId);
+        message.info(
+          `Auto-enabled ${autoAdded.map(m => m.toUpperCase()).join(', ')} (required by ${moduleId.toUpperCase()})`
+        );
+      }
+      
+      setEnabledModules(withDeps);
     } else {
-      newModules = enabledModules.filter(m => m !== moduleId);
-    }
-    
-    setEnabledModules(newModules);
-    
-    // Calculate affected users (those who had access to disabled modules)
-    // In real implementation, this would check actual user module assignments
-    if (!enabled) {
-      setAffectedUsers(prev => prev + 1);
-    } else {
-      setAffectedUsers(prev => Math.max(0, prev - 1));
+      // Check what would break
+      const affected = getAffectedModules(moduleId, enabledModules);
+      
+      if (affected.breaking.length > 0) {
+        Modal.confirm({
+          title: 'Disable Module?',
+          icon: <ExclamationCircleOutlined />,
+          content: (
+            <div>
+              <Paragraph>
+                Disabling <strong>{moduleId.toUpperCase()}</strong> will also affect:
+              </Paragraph>
+              <div style={{ marginBottom: 12 }}>
+                <Text type="danger">Breaking changes:</Text>
+                <div>
+                  {affected.breaking.map(m => (
+                    <Tag key={m} color="red">{m.toUpperCase()} - will not work properly</Tag>
+                  ))}
+                </div>
+              </div>
+              <Paragraph type="secondary">
+                Consider disabling these modules as well, or keep {moduleId.toUpperCase()} enabled.
+              </Paragraph>
+            </div>
+          ),
+          okText: 'Disable Anyway',
+          okButtonProps: { danger: true },
+          onOk: () => {
+            setEnabledModules(enabledModules.filter(m => m !== moduleId));
+          },
+        });
+      } else {
+        setEnabledModules(enabledModules.filter(m => m !== moduleId));
+        
+        if (affected.degraded.length > 0) {
+          message.warning(
+            `${affected.degraded.map(m => m.toUpperCase()).join(', ')} will have reduced functionality`
+          );
+        }
+      }
     }
   };
 
@@ -81,6 +141,11 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
     
     if (enabledModules.length === 0) {
       message.error('At least one module must be enabled');
+      return;
+    }
+    
+    if (!validation.valid) {
+      message.error('Please fix dependency errors before saving');
       return;
     }
     
@@ -99,7 +164,14 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
   const handleReset = () => {
     if (tenant) {
       setEnabledModules([...tenant.enabledModules]);
-      setAffectedUsers(0);
+    }
+  };
+
+  const handleApplyBundle = (bundleId: string) => {
+    const bundle = MODULE_BUNDLES.find(b => b.id === bundleId);
+    if (bundle) {
+      setEnabledModules([...bundle.modules]);
+      message.success(`Applied "${bundle.name}" bundle`);
     }
   };
 
@@ -119,7 +191,7 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
           <span>Configure Modules</span>
         </Space>
       }
-      width={600}
+      width={640}
       open={!!tenant}
       onClose={onClose}
       extra={
@@ -132,7 +204,7 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
             icon={<SaveOutlined />}
             onClick={handleSave}
             loading={loading}
-            disabled={!hasChanges}
+            disabled={!hasChanges || !validation.valid}
           >
             Save Changes
           </Button>
@@ -166,21 +238,54 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
         </Row>
       </Card>
 
-      {/* Warning if disabling modules */}
-      {removedModules.length > 0 && (
+      {/* Dependency Errors */}
+      {!validation.valid && (
         <Alert
-          message="Warning: Modules will be disabled"
+          message="Configuration Error"
           description={
-            <div>
-              <Paragraph style={{ marginBottom: 8 }}>
-                Disabling modules will remove access for users who currently have these modules assigned:
-              </Paragraph>
-              <Space wrap>
-                {removedModules.map(m => (
-                  <Tag key={m} color="red">{m.toUpperCase()}</Tag>
-                ))}
-              </Space>
-            </div>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {validation.errors.map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          }
+          type="error"
+          showIcon
+          icon={<ExclamationCircleOutlined />}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {/* Dependency Warnings */}
+      {validation.warnings.length > 0 && validation.valid && (
+        <Alert
+          message="Recommendations"
+          description={
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {validation.warnings.slice(0, 3).map((warn, i) => (
+                <li key={i} style={{ color: '#666' }}>{warn}</li>
+              ))}
+            </ul>
+          }
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      {/* Warning if disabling modules */}
+      {removedModules.length > 0 && validation.valid && (
+        <Alert
+          message="Modules will be disabled"
+          description={
+            <Space wrap>
+              {removedModules.map(m => (
+                <Tag key={m} color="red">{m.toUpperCase()}</Tag>
+              ))}
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Users with access to these modules will lose access.
+              </Text>
+            </Space>
           }
           type="warning"
           showIcon
@@ -189,24 +294,47 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
         />
       )}
 
+      {/* Module Bundles */}
+      <div style={{ marginBottom: 16 }}>
+        <Text strong style={{ marginBottom: 8, display: 'block' }}>Quick Setup (Bundles)</Text>
+        <Space wrap>
+          {MODULE_BUNDLES.map(bundle => (
+            <Tooltip key={bundle.id} title={bundle.useCase}>
+              <Button 
+                size="small"
+                onClick={() => handleApplyBundle(bundle.id)}
+              >
+                {bundle.name}
+              </Button>
+            </Tooltip>
+          ))}
+        </Space>
+      </div>
+
+      <Divider style={{ margin: '12px 0' }} />
+
       {/* Module Toggles */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <Text strong>Enabled Modules</Text>
           <Tag color="blue">{enabledModules.length} of {ALL_MODULES.length}</Tag>
         </div>
-        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-          Toggle modules on/off. Users can only access enabled modules.
-        </Paragraph>
       </div>
 
       <List
         dataSource={ALL_MODULES}
         renderItem={(moduleId) => {
           const info = MODULE_INFO[moduleId];
+          const config = MODULE_DEPENDENCIES[moduleId];
           const isEnabled = enabledModules.includes(moduleId);
           const isIncludedInPlan = plan?.includedModules.includes(moduleId);
           const isOptionalInPlan = plan?.optionalModules.includes(moduleId);
+          
+          // Check dependencies
+          const requiredDeps = config.dependencies.filter(d => d.type === 'required');
+          const enhancingDeps = config.dependencies.filter(d => d.type === 'enhances');
+          const missingRequired = requiredDeps.filter(d => !enabledModules.includes(d.moduleId));
+          const missingEnhancing = enhancingDeps.filter(d => !enabledModules.includes(d.moduleId));
           
           return (
             <List.Item
@@ -246,7 +374,7 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
                   </div>
                 }
                 title={
-                  <Space>
+                  <Space wrap size={4}>
                     <Text strong>{info.name}</Text>
                     {isIncludedInPlan && (
                       <Tag color="green" style={{ fontSize: 10 }}>INCLUDED</Tag>
@@ -254,38 +382,67 @@ export default function ModuleConfigDrawer({ tenant, onClose, onSave }: ModuleCo
                     {isOptionalInPlan && (
                       <Tag color="orange" style={{ fontSize: 10 }}>OPTIONAL</Tag>
                     )}
+                    {requiredDeps.length > 0 && (
+                      <Tooltip title={`Requires: ${requiredDeps.map(d => d.moduleId.toUpperCase()).join(', ')}`}>
+                        <Tag icon={<LinkOutlined />} style={{ fontSize: 10 }}>
+                          Needs {requiredDeps.map(d => d.moduleId.toUpperCase()).join(', ')}
+                        </Tag>
+                      </Tooltip>
+                    )}
                   </Space>
                 }
-                description={info.description}
+                description={
+                  <Space direction="vertical" size={2}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{info.description}</Text>
+                    {isEnabled && missingEnhancing.length > 0 && (
+                      <Text type="warning" style={{ fontSize: 11 }}>
+                        ⚡ Works better with: {missingEnhancing.map(d => d.moduleId.toUpperCase()).join(', ')}
+                      </Text>
+                    )}
+                    {isEnabled && missingRequired.length > 0 && (
+                      <Text type="danger" style={{ fontSize: 11 }}>
+                        ⚠️ Requires: {missingRequired.map(d => d.moduleId.toUpperCase()).join(', ')}
+                      </Text>
+                    )}
+                  </Space>
+                }
               />
             </List.Item>
           );
         }}
       />
 
-      {/* Quick Actions */}
-      <Divider />
-      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Button 
-          size="small"
-          onClick={() => setEnabledModules([...ALL_MODULES])}
-        >
-          Enable All
-        </Button>
-        <Button 
-          size="small"
-          onClick={() => setEnabledModules(plan?.includedModules || ['crs', 'rms'])}
-        >
-          Reset to Plan Default
-        </Button>
-        <Button 
-          size="small"
-          danger
-          onClick={() => setEnabledModules(['crs', 'rms'])}
-        >
-          Minimum (CRS + RMS)
-        </Button>
-      </div>
+      {/* Suggestions */}
+      {suggestions.recommended.length > 0 && (
+        <>
+          <Divider />
+          <Alert
+            message="Suggested Modules"
+            description={
+              <Space direction="vertical" size={4}>
+                {suggestions.recommended.map(moduleId => (
+                  <div key={moduleId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>
+                      <Tag color={MODULE_INFO[moduleId].color}>{moduleId.toUpperCase()}</Tag>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{suggestions.reasons[moduleId]}</Text>
+                    </span>
+                    <Button 
+                      size="small" 
+                      type="link"
+                      onClick={() => handleToggle(moduleId, true)}
+                    >
+                      Enable
+                    </Button>
+                  </div>
+                ))}
+              </Space>
+            }
+            type="info"
+            showIcon
+            icon={<CheckCircleOutlined />}
+          />
+        </>
+      )}
     </Drawer>
   );
 }
