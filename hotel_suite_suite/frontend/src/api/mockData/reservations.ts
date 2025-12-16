@@ -44,6 +44,7 @@ for (let i = 1; i <= 30; i++) {
   
   mockReservations.push({
     id: `RES${String(i).padStart(5, '0')}`,
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     confirmationNumber: `AGH${2024}${String(i).padStart(6, '0')}`,
     guestId: guest.id,
     guest,
@@ -82,6 +83,7 @@ for (let i = 31; i <= 55; i++) {
   
   mockReservations.push({
     id: `RES${String(i).padStart(5, '0')}`,
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     confirmationNumber: `AGH${2024}${String(i).padStart(6, '0')}`,
     guestId: guest.id,
     guest,
@@ -119,6 +121,7 @@ for (let i = 56; i <= 85; i++) {
   
   mockReservations.push({
     id: `RES${String(i).padStart(5, '0')}`,
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     confirmationNumber: `AGH${2024}${String(i).padStart(6, '0')}`,
     guestId: guest.id,
     guest,
@@ -152,6 +155,7 @@ for (let i = 86; i <= 95; i++) {
   
   mockReservations.push({
     id: `RES${String(i).padStart(5, '0')}`,
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     confirmationNumber: `AGH${2024}${String(i).padStart(6, '0')}`,
     guestId: guest.id,
     guest,
@@ -187,6 +191,7 @@ for (let i = 96; i <= 105; i++) {
   
   mockReservations.push({
     id: `RES${String(i).padStart(5, '0')}`,
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     confirmationNumber: `AGH${2024}${String(i).padStart(6, '0')}`,
     guestId: guest.id,
     guest,
@@ -224,6 +229,7 @@ for (let i = 106; i <= 110; i++) {
   
   mockReservations.push({
     id: `RES${String(i).padStart(5, '0')}`,
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     confirmationNumber: `AGH${2024}${String(i).padStart(6, '0')}`,
     guestId: guest.id,
     guest,

@@ -32,6 +32,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { PageHeader, StatusTag } from '@/components/shared';
+import { maintenanceService } from '@/api';
 import type { MaintenanceRequest, MaintenanceRequestStatus, MaintenanceCategory } from '@/types';
 
 const { Text, Title } = Typography;
@@ -55,72 +56,10 @@ const CATEGORY_LABELS: Record<MaintenanceCategory, string> = {
   other: 'Other',
 };
 
-// Mock maintenance requests
-const mockMaintenanceRequests: MaintenanceRequest[] = [
-  {
-    id: 'MR001',
-    ticketNumber: 'MNT-2024-001',
-    roomId: 'room-101',
-    room: { roomNumber: '101', floor: 1 } as any,
-    category: 'plumbing',
-    description: 'Bathroom sink is leaking',
-    priority: 'high',
-    status: 'in_progress',
-    reportedBy: 'emp-001',
-    assignedTo: 'emp-010',
-    assignedEmployee: { firstName: 'John', lastName: 'Engineer' } as any,
-    startedAt: dayjs().subtract(2, 'hour').toISOString(),
-    createdAt: dayjs().subtract(1, 'day').toISOString(),
-    updatedAt: dayjs().subtract(2, 'hour').toISOString(),
-  },
-  {
-    id: 'MR002',
-    ticketNumber: 'MNT-2024-002',
-    roomId: 'room-205',
-    room: { roomNumber: '205', floor: 2 } as any,
-    category: 'hvac',
-    description: 'AC not cooling properly',
-    priority: 'normal',
-    status: 'reported',
-    reportedBy: 'emp-002',
-    createdAt: dayjs().subtract(4, 'hour').toISOString(),
-    updatedAt: dayjs().subtract(4, 'hour').toISOString(),
-  },
-  {
-    id: 'MR003',
-    ticketNumber: 'MNT-2024-003',
-    location: 'Lobby',
-    category: 'electrical',
-    description: 'Light fixture flickering near entrance',
-    priority: 'low',
-    status: 'completed',
-    reportedBy: 'emp-003',
-    assignedTo: 'emp-011',
-    assignedEmployee: { firstName: 'Mike', lastName: 'Tech' } as any,
-    completedAt: dayjs().subtract(1, 'hour').toISOString(),
-    resolution: 'Replaced faulty ballast',
-    createdAt: dayjs().subtract(2, 'day').toISOString(),
-    updatedAt: dayjs().subtract(1, 'hour').toISOString(),
-  },
-  {
-    id: 'MR004',
-    ticketNumber: 'MNT-2024-004',
-    roomId: 'room-401',
-    room: { roomNumber: '401', floor: 4 } as any,
-    category: 'furniture',
-    description: 'Chair leg broken in room',
-    priority: 'normal',
-    status: 'acknowledged',
-    reportedBy: 'emp-004',
-    createdAt: dayjs().subtract(6, 'hour').toISOString(),
-    updatedAt: dayjs().subtract(3, 'hour').toISOString(),
-  },
-];
-
 export default function MaintenancePage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [requests, setRequests] = useState<MaintenanceRequest[]>(mockMaintenanceRequests);
+  const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [statusFilter, setStatusFilter] = useState<MaintenanceRequestStatus | undefined>();
   const [categoryFilter, setCategoryFilter] = useState<MaintenanceCategory | undefined>();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -129,8 +68,12 @@ export default function MaintenancePage() {
   const loadRequests = async () => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setRequests(mockMaintenanceRequests);
+      const response = await maintenanceService.getAll({
+        status: statusFilter,
+        category: categoryFilter,
+        pageSize: 100,
+      });
+      setRequests(response.data);
     } catch (error) {
       message.error('Failed to load maintenance requests');
     } finally {
@@ -140,13 +83,7 @@ export default function MaintenancePage() {
 
   useEffect(() => {
     loadRequests();
-  }, []);
-
-  const filteredRequests = requests.filter((r) => {
-    if (statusFilter && r.status !== statusFilter) return false;
-    if (categoryFilter && r.category !== categoryFilter) return false;
-    return true;
-  });
+  }, [statusFilter, categoryFilter]);
 
   const statusCounts = requests.reduce((acc, r) => {
     acc[r.status] = (acc[r.status] || 0) + 1;
@@ -155,45 +92,40 @@ export default function MaintenancePage() {
 
   const handleCreateRequest = async (values: any) => {
     try {
-      const newRequest: MaintenanceRequest = {
-        id: `MR${Date.now()}`,
-        ticketNumber: `MNT-2024-${String(requests.length + 1).padStart(3, '0')}`,
+      await maintenanceService.create({
         roomId: values.roomId,
         location: values.location,
         category: values.category,
         description: values.description,
         priority: values.priority,
-        status: 'reported',
         reportedBy: 'current-user',
-        createdAt: dayjs().toISOString(),
-        updatedAt: dayjs().toISOString(),
-      };
-      setRequests([newRequest, ...requests]);
+      });
       setDrawerOpen(false);
       form.resetFields();
       message.success('Maintenance request created');
-    } catch (error) {
-      message.error('Failed to create request');
+      loadRequests();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to create request');
     }
   };
 
   const handleStatusUpdate = async (requestId: string, newStatus: MaintenanceRequestStatus) => {
     try {
-      setRequests((prev) =>
-        prev.map((r) =>
-          r.id === requestId
-            ? {
-                ...r,
-                status: newStatus,
-                startedAt: newStatus === 'in_progress' ? dayjs().toISOString() : r.startedAt,
-                completedAt: newStatus === 'completed' ? dayjs().toISOString() : r.completedAt,
-              }
-            : r
-        )
-      );
+      if (newStatus === 'acknowledged') {
+        await maintenanceService.acknowledge(requestId);
+      } else if (newStatus === 'in_progress') {
+        await maintenanceService.start(requestId);
+      } else if (newStatus === 'completed') {
+        await maintenanceService.complete(requestId, 'Issue resolved');
+      } else if (newStatus === 'on_hold') {
+        await maintenanceService.putOnHold(requestId);
+      } else {
+        await maintenanceService.update(requestId, { status: newStatus });
+      }
       message.success('Request status updated');
-    } catch (error) {
-      message.error('Failed to update request');
+      loadRequests();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to update request');
     }
   };
 
@@ -434,7 +366,7 @@ export default function MaintenancePage() {
       <Card>
         <Table
           columns={columns}
-          dataSource={filteredRequests}
+          dataSource={requests}
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}

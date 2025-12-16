@@ -116,16 +116,49 @@ export default function LeavePage() {
         <Table columns={columns} dataSource={requests} rowKey="id" loading={loading} pagination={{ pageSize: 15 }} size="middle" />
       </Card>
 
-      <Modal title="New Leave Request" open={modalOpen} onCancel={() => setModalOpen(false)} onOk={() => form.submit()} okText="Submit">
-        <Form form={form} layout="vertical" onFinish={() => { setModalOpen(false); message.success('Leave request submitted'); }}>
+      <Modal 
+        title="New Leave Request" 
+        open={modalOpen} 
+        onCancel={() => {
+          setModalOpen(false);
+          form.resetFields();
+        }}
+        onOk={() => form.submit()} 
+        okText="Submit"
+      >
+        <Form 
+          form={form} 
+          layout="vertical" 
+          onFinish={async (values) => {
+            try {
+              const [startDate, endDate] = values.dates;
+              await leaveService.create({
+                employeeId: 'EMP001', // In real app, this would come from auth context
+                type: values.type,
+                startDate: startDate.format('YYYY-MM-DD'),
+                endDate: endDate.format('YYYY-MM-DD'),
+                reason: values.reason,
+              });
+              message.success('Leave request submitted successfully');
+              setModalOpen(false);
+              form.resetFields();
+              loadRequests();
+            } catch (error: any) {
+              message.error(error.message || 'Failed to submit leave request');
+            }
+          }}
+        >
           <Form.Item name="type" label="Leave Type" rules={[{ required: true }]}>
-            <Select options={Object.keys(TYPE_COLORS).map((t) => ({ label: t.toUpperCase(), value: t }))} />
+            <Select 
+              placeholder="Select leave type"
+              options={Object.keys(TYPE_COLORS).map((t) => ({ label: t.toUpperCase(), value: t }))} 
+            />
           </Form.Item>
-          <Form.Item name="dates" label="Dates" rules={[{ required: true }]}>
+          <Form.Item name="dates" label="Dates" rules={[{ required: true, message: 'Please select dates' }]}>
             <DatePicker.RangePicker style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="reason" label="Reason" rules={[{ required: true }]}>
-            <Input.TextArea rows={3} />
+          <Form.Item name="reason" label="Reason" rules={[{ required: true, message: 'Please provide a reason' }]}>
+            <Input.TextArea rows={3} placeholder="Enter reason for leave" />
           </Form.Item>
         </Form>
       </Modal>

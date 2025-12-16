@@ -4,6 +4,7 @@ import { LogoutOutlined, PrinterOutlined, DollarOutlined, FileTextOutlined } fro
 import dayjs from 'dayjs';
 import { billingService, workflowService } from '@/api';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAppContext } from '@/context/AppContext';
 import type { Reservation, Folio } from '@/types';
 
 const { Text, Title } = Typography;
@@ -25,6 +26,7 @@ export default function CheckOutModal({
   const [folio, setFolio] = useState<Folio | null>(null);
   const [folioLoading, setFolioLoading] = useState(false);
   const { addNotification } = useNotifications();
+  const { tenant } = useAppContext();
 
   useEffect(() => {
     if (open && reservation.folioId) {
@@ -33,13 +35,14 @@ export default function CheckOutModal({
   }, [open, reservation.folioId]);
 
   const loadFolio = async () => {
-    if (!reservation.folioId) return;
+    if (!reservation.folioId || !tenant?.id) return;
     setFolioLoading(true);
     try {
-      const data = await billingService.getFolioById(reservation.folioId);
+      const data = await billingService.getFolioById(tenant.id, reservation.folioId);
       setFolio(data);
     } catch (error) {
-      console.error('Failed to load folio');
+      // Folio may not exist yet, which is acceptable
+      setFolio(null);
     } finally {
       setFolioLoading(false);
     }
@@ -57,9 +60,14 @@ export default function CheckOutModal({
   const performCheckOut = async () => {
     setLoading(true);
     try {
+      if (!tenant?.id) {
+        message.error('Tenant context not available');
+        return;
+      }
+      
       // Use workflow service for integrated check-out
       // This will: 1) Check-out reservation, 2) Release room, 3) Close folio
-      const result = await workflowService.performCheckOut(reservation.id);
+      const result = await workflowService.performCheckOut(tenant.id, reservation.id);
       
       message.success(`Guest checked out from Room ${result.room?.roomNumber}`);
       

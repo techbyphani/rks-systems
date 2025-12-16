@@ -34,6 +34,7 @@ import {
 import dayjs from 'dayjs';
 import { PageHeader, StatusTag } from '@/components/shared';
 import { reservationService, roomService } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Reservation, Room } from '@/types';
 import ReservationFormDrawer from './ReservationFormDrawer';
 import CheckInModal from './CheckInModal';
@@ -44,6 +45,7 @@ const { Text, Title } = Typography;
 export default function ReservationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
@@ -52,19 +54,20 @@ export default function ReservationDetailPage() {
   const [checkOutModalOpen, setCheckOutModalOpen] = useState(false);
 
   useEffect(() => {
-    if (id) {
+    if (id && tenant?.id) {
       loadReservation();
     }
-  }, [id]);
+  }, [id, tenant?.id]);
 
   const loadReservation = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
-      const data = await reservationService.getById(id!);
+      const data = await reservationService.getById(tenant.id, id!);
       setReservation(data);
       // Load available rooms for check-in
       if (data?.status === 'confirmed' && data.roomTypeId) {
-        const rooms = await roomService.getAvailableRooms(data.roomTypeId);
+        const rooms = await roomService.getAvailableRooms(tenant.id, data.roomTypeId);
         setAvailableRooms(rooms);
       }
     } catch (error) {
@@ -92,6 +95,10 @@ export default function ReservationDetailPage() {
   };
 
   const handleCancelReservation = () => {
+    if (!tenant?.id) {
+      message.error('Tenant context not available');
+      return;
+    }
     Modal.confirm({
       title: 'Cancel Reservation',
       content: 'Are you sure you want to cancel this reservation? This action cannot be undone.',
@@ -99,7 +106,7 @@ export default function ReservationDetailPage() {
       okButtonProps: { danger: true },
       onOk: async () => {
         try {
-          await reservationService.cancel(id!);
+          await reservationService.cancel(tenant.id, id!);
           message.success('Reservation cancelled');
           loadReservation();
         } catch (error) {

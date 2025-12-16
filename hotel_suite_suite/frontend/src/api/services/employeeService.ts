@@ -123,6 +123,69 @@ export const employeeService = {
   },
 
   /**
+   * Create a new employee
+   */
+  async create(data: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>): Promise<Employee> {
+    await delay(400);
+    
+    // Generate employee code
+    const deptPrefix = data.department.substring(0, 3).toUpperCase();
+    const existingCodes = employees
+      .filter(e => e.employeeCode.startsWith(deptPrefix))
+      .map(e => {
+        const num = parseInt(e.employeeCode.replace(deptPrefix, ''), 10);
+        return isNaN(num) ? 0 : num;
+      });
+    const nextNumber = existingCodes.length > 0 ? Math.max(...existingCodes) + 1 : 1;
+    const employeeCode = `${deptPrefix}${String(nextNumber).padStart(4, '0')}`;
+    
+    const newEmployee: Employee = {
+      ...data,
+      id: generateId(),
+      employeeCode,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    
+    employees.unshift(newEmployee);
+    return newEmployee;
+  },
+
+  /**
+   * Update an employee
+   */
+  async update(id: string, data: Partial<Employee>): Promise<Employee> {
+    await delay(400);
+    
+    const index = employees.findIndex(e => e.id === id);
+    if (index === -1) throw new Error('Employee not found');
+    
+    employees[index] = {
+      ...employees[index],
+      ...data,
+      updatedAt: now(),
+    };
+    
+    return employees[index];
+  },
+
+  /**
+   * Delete an employee (soft delete by changing status)
+   */
+  async delete(id: string): Promise<void> {
+    await delay(300);
+    
+    const index = employees.findIndex(e => e.id === id);
+    if (index === -1) throw new Error('Employee not found');
+    
+    employees[index] = {
+      ...employees[index],
+      status: 'terminated',
+      updatedAt: now(),
+    };
+  },
+
+  /**
    * Get employee statistics
    */
   async getStats(): Promise<{

@@ -1,74 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Space, Select, Tag, Statistic, Button, message, Empty } from 'antd';
-import { PlusOutlined, FileTextOutlined, PrinterOutlined, EyeOutlined, MoreOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Space, Select, Tag, Statistic, Button, message } from 'antd';
+import { PlusOutlined, FileTextOutlined, PrinterOutlined, EyeOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { PageHeader, DataTable, StatusTag } from '@/components/shared';
-import type { Invoice, InvoiceStatus } from '@/types';
-
-// Mock invoices for demo
-const mockInvoices: Invoice[] = [
-  {
-    id: 'inv-001',
-    invoiceNumber: 'INV-2024-001',
-    folioId: 'folio-001',
-    guestId: 'guest-001',
-    guest: { firstName: 'John', lastName: 'Smith', email: 'john@example.com' } as any,
-    companyName: 'Acme Corp',
-    status: 'issued',
-    issueDate: dayjs().subtract(2, 'day').format('YYYY-MM-DD'),
-    dueDate: dayjs().add(28, 'day').format('YYYY-MM-DD'),
-    items: [],
-    subtotal: 45000,
-    taxAmount: 8100,
-    totalAmount: 53100,
-    paidAmount: 0,
-    balance: 53100,
-    currency: 'INR',
-    createdAt: dayjs().subtract(2, 'day').toISOString(),
-    updatedAt: dayjs().subtract(2, 'day').toISOString(),
-  },
-  {
-    id: 'inv-002',
-    invoiceNumber: 'INV-2024-002',
-    folioId: 'folio-002',
-    guestId: 'guest-002',
-    guest: { firstName: 'Sarah', lastName: 'Johnson', email: 'sarah@example.com' } as any,
-    status: 'paid',
-    issueDate: dayjs().subtract(10, 'day').format('YYYY-MM-DD'),
-    dueDate: dayjs().add(20, 'day').format('YYYY-MM-DD'),
-    items: [],
-    subtotal: 28000,
-    taxAmount: 5040,
-    totalAmount: 33040,
-    paidAmount: 33040,
-    balance: 0,
-    currency: 'INR',
-    createdAt: dayjs().subtract(10, 'day').toISOString(),
-    updatedAt: dayjs().subtract(5, 'day').toISOString(),
-  },
-  {
-    id: 'inv-003',
-    invoiceNumber: 'INV-2024-003',
-    folioId: 'folio-003',
-    guestId: 'guest-003',
-    guest: { firstName: 'Mike', lastName: 'Brown', email: 'mike@example.com' } as any,
-    companyName: 'TechStart Inc',
-    status: 'overdue',
-    issueDate: dayjs().subtract(45, 'day').format('YYYY-MM-DD'),
-    dueDate: dayjs().subtract(15, 'day').format('YYYY-MM-DD'),
-    items: [],
-    subtotal: 72000,
-    taxAmount: 12960,
-    totalAmount: 84960,
-    paidAmount: 40000,
-    balance: 44960,
-    currency: 'INR',
-    createdAt: dayjs().subtract(45, 'day').toISOString(),
-    updatedAt: dayjs().subtract(10, 'day').toISOString(),
-  },
-];
+import { billingService } from '@/api';
+import { useAppContext } from '@/context/AppContext';
+import type { Invoice, InvoiceStatus, PaginatedResponse } from '@/types';
 
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
   draft: 'default',
@@ -81,32 +20,39 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
 
 export default function InvoicesPage() {
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(false);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [data, setData] = useState<PaginatedResponse<Invoice> | null>(null);
+  const [stats, setStats] = useState<{
+    total: number;
+    outstanding: number;
+    overdue: number;
+    paidThisMonth: number;
+  } | null>(null);
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | undefined>();
 
   useEffect(() => {
-    loadInvoices();
-  }, []);
+    if (tenant?.id) {
+      loadInvoices();
+    }
+  }, [statusFilter, tenant?.id]);
 
   const loadInvoices = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setInvoices(mockInvoices);
+      const [invoicesData, statsData] = await Promise.all([
+        billingService.getAllInvoices(tenant.id, { status: statusFilter }),
+        billingService.getInvoiceStats(tenant.id),
+      ]);
+      setData(invoicesData);
+      setStats(statsData);
     } catch (error) {
       message.error('Failed to load invoices');
     } finally {
       setLoading(false);
     }
   };
-
-  const filteredInvoices = statusFilter
-    ? invoices.filter((inv) => inv.status === statusFilter)
-    : invoices;
-
-  const totalOutstanding = invoices.reduce((sum, inv) => sum + inv.balance, 0);
-  const overdueCount = invoices.filter((inv) => inv.status === 'overdue').length;
 
   const columns: ColumnsType<Invoice> = [
     {
@@ -199,7 +145,7 @@ export default function InvoicesPage() {
             type="text"
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => message.info('Invoice detail view coming soon')}
+            onClick={() => navigate(`/suite/bms/invoices/${record.id}`)}
           />
           <Button
             type="text"
@@ -222,62 +168,74 @@ export default function InvoicesPage() {
           { label: 'Invoices' },
         ]}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => message.info('Create invoice coming soon')}>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={() => navigate('/suite/bms/folios')}
+          >
             Create Invoice
           </Button>
         }
       />
 
       {/* Summary Stats */}
-      <Row gutter={16}>
-        <Col xs={12} sm={6}>
-          <Card size="small">
-            <Statistic
-              title="Total Invoices"
-              value={invoices.length}
-              prefix={<FileTextOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
-            <Statistic
-              title="Outstanding"
-              value={totalOutstanding}
-              prefix="₹"
-              valueStyle={{ color: '#fa8c16' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
-            <Statistic
-              title="Overdue"
-              value={overdueCount}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={12} sm={6}>
-          <Card size="small">
-            <Statistic
-              title="Paid This Month"
-              value={invoices.filter((inv) => inv.status === 'paid').length}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {stats && (
+        <Row gutter={16}>
+          <Col xs={12} sm={6}>
+            <Card size="small">
+              <Statistic
+                title="Total Invoices"
+                value={stats.total}
+                prefix={<FileTextOutlined />}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card size="small">
+              <Statistic
+                title="Outstanding"
+                value={stats.outstanding}
+                prefix="₹"
+                valueStyle={{ color: '#fa8c16' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card size="small">
+              <Statistic
+                title="Overdue"
+                value={stats.overdue}
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card size="small">
+              <Statistic
+                title="Paid This Month"
+                value={stats.paidThisMonth}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      )}
 
       <DataTable<Invoice>
         title="All Invoices"
         columns={columns}
-        dataSource={filteredInvoices}
+        dataSource={data?.data || []}
         rowKey="id"
         loading={loading}
         onRefresh={loadInvoices}
         showSearch={false}
-        pagination={{ pageSize: 10 }}
+        pagination={{
+          current: data?.page || 1,
+          pageSize: data?.pageSize || 10,
+          total: data?.total || 0,
+          showSizeChanger: true,
+          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} invoices`,
+        }}
         extra={
           <Select
             placeholder="All Statuses"

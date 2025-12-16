@@ -3,6 +3,7 @@ import type { Guest, GuestVipStatus } from '@/types';
 export const mockGuests: Guest[] = [
   {
     id: 'G001',
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     firstName: 'Rajesh',
     lastName: 'Sharma',
     email: 'rajesh.sharma@email.com',
@@ -34,6 +35,7 @@ export const mockGuests: Guest[] = [
   },
   {
     id: 'G002',
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     firstName: 'Priya',
     lastName: 'Patel',
     email: 'priya.patel@company.com',
@@ -315,6 +317,7 @@ for (let i = 11; i <= 50; i++) {
   
   mockGuests.push({
     id: `G${String(i).padStart(3, '0')}`,
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     firstName,
     lastName,
     email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@email.com`,

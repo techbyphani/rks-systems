@@ -1,15 +1,47 @@
-import { Card, Col, List, Progress, Row, Space, Statistic, Typography } from 'antd'
+import { useEffect, useState } from 'react';
+import { Card, Col, List, Progress, Row, Space, Statistic, Typography, Spin, message } from 'antd'
 import { RiseOutlined, FallOutlined } from '@ant-design/icons'
+import { analyticsService, accountService } from '@/api';
 
 const { Title, Text } = Typography
 
-const financials = [
-  { label: 'Revenue MTD', value: 5.4, suffix: 'Cr', trend: 'up' },
-  { label: 'Expenses MTD', value: 3.1, suffix: 'Cr', trend: 'down' },
-  { label: 'Gross Operating Profit', value: 2.3, suffix: 'Cr', trend: 'up' },
-]
-
 export default function ASDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [financials, setFinancials] = useState<{
+    revenueMTD: number;
+    expensesMTD: number;
+    grossOperatingProfit: number;
+    revenueTrend: 'up' | 'down';
+    expensesTrend: 'up' | 'down';
+  } | null>(null);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const data = await analyticsService.getFinancialSummary();
+      setFinancials(data);
+    } catch (error) {
+      message.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 100 }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  // Format values in Crores
+  const formatInCrores = (value: number) => (value / 10000000).toFixed(1);
+
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
@@ -18,19 +50,43 @@ export default function ASDashboard() {
       </div>
 
       <Row gutter={[16, 16]}>
-        {financials.map((metric) => (
-          <Col xs={24} md={8} key={metric.label}>
-            <Card>
-              <Statistic
-                title={metric.label}
-                value={metric.value}
-                suffix={metric.suffix}
-                valueStyle={{ color: metric.trend === 'up' ? '#52c41a' : '#fa541c' }}
-                prefix={metric.trend === 'up' ? <RiseOutlined /> : <FallOutlined />}
-              />
-            </Card>
-          </Col>
-        ))}
+        {financials && (
+          <>
+            <Col xs={24} md={8}>
+              <Card>
+                <Statistic
+                  title="Revenue MTD"
+                  value={formatInCrores(financials.revenueMTD)}
+                  suffix="Cr"
+                  valueStyle={{ color: financials.revenueTrend === 'up' ? '#52c41a' : '#fa541c' }}
+                  prefix={financials.revenueTrend === 'up' ? <RiseOutlined /> : <FallOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card>
+                <Statistic
+                  title="Expenses MTD"
+                  value={formatInCrores(financials.expensesMTD)}
+                  suffix="Cr"
+                  valueStyle={{ color: financials.expensesTrend === 'down' ? '#52c41a' : '#fa541c' }}
+                  prefix={financials.expensesTrend === 'down' ? <RiseOutlined /> : <FallOutlined />}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card>
+                <Statistic
+                  title="Gross Operating Profit"
+                  value={formatInCrores(financials.grossOperatingProfit)}
+                  suffix="Cr"
+                  valueStyle={{ color: '#52c41a' }}
+                  prefix={<RiseOutlined />}
+                />
+              </Card>
+            </Col>
+          </>
+        )}
       </Row>
 
       <Row gutter={[16, 16]}>

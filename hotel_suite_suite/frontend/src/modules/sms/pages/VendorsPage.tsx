@@ -17,12 +17,15 @@ export default function VendorsPage() {
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [form] = Form.useForm();
 
-  useEffect(() => { loadVendors(); }, []);
+  useEffect(() => { loadVendors(); }, [search, statusFilter]);
 
   const loadVendors = async () => {
     setLoading(true);
     try {
-      const data = await vendorService.getAll();
+      const data = await vendorService.getAll({ 
+        search: search || undefined,
+        status: statusFilter 
+      });
       setVendors(data);
     } catch (error) {
       message.error('Failed to load vendors');
@@ -31,6 +34,7 @@ export default function VendorsPage() {
     }
   };
 
+  // Filtering is handled by the API, but we can add client-side filtering for search
   const filteredVendors = vendors.filter((v) => {
     if (search && !v.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (statusFilter && v.status !== statusFilter) return false;
@@ -41,12 +45,19 @@ export default function VendorsPage() {
 
   const handleSubmit = async (values: any) => {
     try {
-      message.success(editingVendor ? 'Vendor updated' : 'Vendor created');
+      if (editingVendor) {
+        await vendorService.update(editingVendor.id, values);
+        message.success('Vendor updated successfully');
+      } else {
+        await vendorService.create(values);
+        message.success('Vendor created successfully');
+      }
       setDrawerOpen(false);
+      setEditingVendor(null);
       form.resetFields();
       loadVendors();
-    } catch (error) {
-      message.error('Failed to save vendor');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to save vendor');
     }
   };
 

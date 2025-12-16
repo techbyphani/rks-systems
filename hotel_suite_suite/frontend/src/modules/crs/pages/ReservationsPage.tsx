@@ -6,6 +6,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { PageHeader, DataTable, StatusTag } from '@/components/shared';
 import { reservationService, type ReservationFilters } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Reservation, PaginatedResponse } from '@/types';
 import ReservationFormDrawer from './ReservationFormDrawer';
 
@@ -13,6 +14,7 @@ const { RangePicker } = DatePicker;
 
 export default function ReservationsPage() {
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PaginatedResponse<Reservation> | null>(null);
   const [filters, setFilters] = useState<ReservationFilters>({ page: 1, pageSize: 10 });
@@ -21,21 +23,20 @@ export default function ReservationsPage() {
 
   useEffect(() => {
     loadReservations();
-  }, [filters]);
+  }, [filters, tenant?.id]);
 
   const loadReservations = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
-      const result = await reservationService.getAll(filters);
+      const result = await reservationService.getAll({ ...filters, tenantId: tenant.id });
       // Ensure result.data is always an array
       if (result && !Array.isArray(result.data)) {
-        console.error('reservationService.getAll returned non-array data:', result);
         setData({ ...result, data: [] });
       } else {
         setData(result);
       }
     } catch (error) {
-      console.error('Failed to load reservations:', error);
       message.error('Failed to load reservations');
       setData({ data: [], total: 0, page: 1, pageSize: 10, totalPages: 0 });
     } finally {

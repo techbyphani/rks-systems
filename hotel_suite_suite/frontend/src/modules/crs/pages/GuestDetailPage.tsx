@@ -32,6 +32,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { PageHeader, StatusTag } from '@/components/shared';
 import { guestService, reservationService } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Guest, Reservation } from '@/types';
 import GuestFormDrawer from './GuestFormDrawer';
 
@@ -40,22 +41,24 @@ const { Text, Title } = Typography;
 export default function GuestDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [guest, setGuest] = useState<Guest | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
 
   useEffect(() => {
-    if (id) {
+    if (id && tenant?.id) {
       loadGuest();
       loadGuestReservations();
     }
-  }, [id]);
+  }, [id, tenant?.id]);
 
   const loadGuest = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
-      const data = await guestService.getById(id!);
+      const data = await guestService.getById(tenant.id, id!);
       setGuest(data);
     } catch (error) {
       message.error('Failed to load guest');
@@ -65,11 +68,12 @@ export default function GuestDetailPage() {
   };
 
   const loadGuestReservations = async () => {
+    if (!tenant?.id || !guest?.id) return;
     try {
-      const result = await reservationService.getByGuestId(id!);
+      const result = await reservationService.getByGuestId(tenant.id, guest.id);
       setReservations(result);
     } catch (error) {
-      console.error('Failed to load reservations');
+      // Error handling
     }
   };
 

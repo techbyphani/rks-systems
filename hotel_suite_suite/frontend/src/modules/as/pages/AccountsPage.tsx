@@ -1,53 +1,87 @@
 import { useEffect, useState } from 'react';
-import { Card, Row, Col, Space, Tag, Button, message, Table, Select, Statistic, Tree, Input } from 'antd';
-import { PlusOutlined, SearchOutlined, BankOutlined, DollarOutlined, FundOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Space, Tag, Button, message, Table, Select, Statistic, Input, Drawer, Form } from 'antd';
+import { PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import type { TreeDataNode } from 'antd';
 import { PageHeader } from '@/components/shared';
+import { accountService, type AccountFilters } from '@/api';
 import type { Account, AccountType } from '@/types';
 
 const TYPE_COLORS: Record<AccountType, string> = { asset: 'green', liability: 'red', equity: 'purple', revenue: 'blue', expense: 'orange' };
 
-// Mock accounts data
-const mockAccounts: Account[] = [
-  { id: 'acc-001', code: '1000', name: 'Cash', type: 'asset', balance: 1250000, currency: 'INR', isActive: true, isSystemAccount: true, createdAt: '', updatedAt: '' },
-  { id: 'acc-002', code: '1100', name: 'Accounts Receivable', type: 'asset', balance: 450000, currency: 'INR', isActive: true, isSystemAccount: true, createdAt: '', updatedAt: '' },
-  { id: 'acc-003', code: '2000', name: 'Accounts Payable', type: 'liability', balance: 320000, currency: 'INR', isActive: true, isSystemAccount: true, createdAt: '', updatedAt: '' },
-  { id: 'acc-004', code: '3000', name: 'Equity', type: 'equity', balance: 5000000, currency: 'INR', isActive: true, isSystemAccount: true, createdAt: '', updatedAt: '' },
-  { id: 'acc-005', code: '4000', name: 'Room Revenue', type: 'revenue', balance: 2850000, currency: 'INR', isActive: true, isSystemAccount: true, createdAt: '', updatedAt: '' },
-  { id: 'acc-006', code: '4100', name: 'F&B Revenue', type: 'revenue', balance: 890000, currency: 'INR', isActive: true, isSystemAccount: true, createdAt: '', updatedAt: '' },
-  { id: 'acc-007', code: '5000', name: 'Salaries & Wages', type: 'expense', balance: 980000, currency: 'INR', isActive: true, isSystemAccount: false, createdAt: '', updatedAt: '' },
-  { id: 'acc-008', code: '5100', name: 'Utilities', type: 'expense', balance: 245000, currency: 'INR', isActive: true, isSystemAccount: false, createdAt: '', updatedAt: '' },
-];
-
 export default function AccountsPage() {
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [stats, setStats] = useState<{
+    totalAssets: number;
+    totalLiabilities: number;
+    totalRevenue: number;
+    totalExpenses: number;
+  } | null>(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<AccountType | undefined>();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [form] = Form.useForm();
 
-  useEffect(() => { loadAccounts(); }, []);
+  useEffect(() => { 
+    loadAccounts();
+    loadStats();
+  }, [search, typeFilter]);
 
   const loadAccounts = async () => {
     setLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 500));
-      setAccounts(mockAccounts);
+      const filters: AccountFilters = {
+        search: search || undefined,
+        type: typeFilter,
+      };
+      const data = await accountService.getAll(filters);
+      setAccounts(data);
+    } catch (error) {
+      message.error('Failed to load accounts');
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredAccounts = accounts.filter((acc) => {
-    if (search && !acc.name.toLowerCase().includes(search.toLowerCase()) && !acc.code.includes(search)) return false;
-    if (typeFilter && acc.type !== typeFilter) return false;
-    return true;
-  });
+  const loadStats = async () => {
+    try {
+      const statsData = await accountService.getStats();
+      setStats({
+        totalAssets: statsData.totalAssets,
+        totalLiabilities: statsData.totalLiabilities,
+        totalRevenue: statsData.totalRevenue,
+        totalExpenses: statsData.totalExpenses,
+      });
+    } catch (error) {
+      // Silent fail for stats
+    }
+  };
 
-  const totalAssets = accounts.filter((a) => a.type === 'asset').reduce((sum, a) => sum + a.balance, 0);
-  const totalLiabilities = accounts.filter((a) => a.type === 'liability').reduce((sum, a) => sum + a.balance, 0);
-  const totalRevenue = accounts.filter((a) => a.type === 'revenue').reduce((sum, a) => sum + a.balance, 0);
-  const totalExpenses = accounts.filter((a) => a.type === 'expense').reduce((sum, a) => sum + a.balance, 0);
+  const handleEdit = (account: Account) => {
+    setEditingAccount(account);
+    form.setFieldsValue(account);
+    setDrawerOpen(true);
+  };
+
+  const handleSubmit = async (values: any) => {
+    try {
+      if (editingAccount) {
+        await accountService.update(editingAccount.id, values);
+        message.success('Account updated successfully');
+      } else {
+        await accountService.create(values);
+        message.success('Account created successfully');
+      }
+      setDrawerOpen(false);
+      setEditingAccount(null);
+      form.resetFields();
+      loadAccounts();
+      loadStats();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to save account');
+    }
+  };
 
   const columns: ColumnsType<Account> = [
     { title: 'Code', dataIndex: 'code', key: 'code', width: 80 },
@@ -64,27 +98,165 @@ export default function AccountsPage() {
         title="Chart of Accounts"
         subtitle="Manage financial accounts"
         breadcrumbs={[{ label: 'Accounting', path: '/suite/as' }, { label: 'Accounts' }]}
-        actions={<Button type="primary" icon={<PlusOutlined />}>Add Account</Button>}
+        actions={
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditingAccount(null);
+              form.resetFields();
+              setDrawerOpen(true);
+            }}
+          >
+            Add Account
+          </Button>
+        }
       />
 
       <Row gutter={16}>
-        <Col xs={12} sm={6}><Card size="small"><Statistic title="Total Assets" value={totalAssets} prefix="₹" valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col xs={12} sm={6}><Card size="small"><Statistic title="Total Liabilities" value={totalLiabilities} prefix="₹" valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-        <Col xs={12} sm={6}><Card size="small"><Statistic title="Total Revenue" value={totalRevenue} prefix="₹" valueStyle={{ color: '#1890ff' }} /></Card></Col>
-        <Col xs={12} sm={6}><Card size="small"><Statistic title="Total Expenses" value={totalExpenses} prefix="₹" valueStyle={{ color: '#fa8c16' }} /></Card></Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic 
+              title="Total Assets" 
+              value={stats?.totalAssets || 0} 
+              prefix="₹" 
+              valueStyle={{ color: '#52c41a' }} 
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic 
+              title="Total Liabilities" 
+              value={stats?.totalLiabilities || 0} 
+              prefix="₹" 
+              valueStyle={{ color: '#ff4d4f' }} 
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic 
+              title="Total Revenue" 
+              value={stats?.totalRevenue || 0} 
+              prefix="₹" 
+              valueStyle={{ color: '#1890ff' }} 
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small">
+            <Statistic 
+              title="Total Expenses" 
+              value={stats?.totalExpenses || 0} 
+              prefix="₹" 
+              valueStyle={{ color: '#fa8c16' }} 
+            />
+          </Card>
+        </Col>
       </Row>
 
       <Card
         title="All Accounts"
         extra={
           <Space>
-            <Input placeholder="Search..." prefix={<SearchOutlined />} value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 180 }} allowClear />
-            <Select placeholder="Type" allowClear style={{ width: 120 }} value={typeFilter} onChange={setTypeFilter} options={Object.keys(TYPE_COLORS).map((t) => ({ label: t.toUpperCase(), value: t }))} />
+            <Input 
+              placeholder="Search..." 
+              prefix={<SearchOutlined />} 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+              style={{ width: 180 }} 
+              allowClear 
+            />
+            <Select 
+              placeholder="Type" 
+              allowClear 
+              style={{ width: 120 }} 
+              value={typeFilter} 
+              onChange={setTypeFilter} 
+              options={Object.keys(TYPE_COLORS).map((t) => ({ label: t.toUpperCase(), value: t }))} 
+            />
           </Space>
         }
       >
-        <Table columns={columns} dataSource={filteredAccounts} rowKey="id" loading={loading} pagination={false} size="middle" />
+        <Table 
+          columns={columns} 
+          dataSource={accounts} 
+          rowKey="id" 
+          loading={loading} 
+          pagination={false} 
+          size="middle" 
+        />
       </Card>
+
+      <Drawer
+        title={editingAccount ? 'Edit Account' : 'Add Account'}
+        width={600}
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditingAccount(null);
+          form.resetFields();
+        }}
+        extra={
+          <Space>
+            <Button onClick={() => {
+              setDrawerOpen(false);
+              setEditingAccount(null);
+              form.resetFields();
+            }}>
+              Cancel
+            </Button>
+            <Button type="primary" onClick={() => form.submit()}>
+              Save
+            </Button>
+          </Space>
+        }
+      >
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+          <Form.Item
+            name="code"
+            label="Account Code"
+            rules={[{ required: true, message: 'Account code is required' }]}
+          >
+            <Input placeholder="e.g., 1000" disabled={!!editingAccount?.isSystemAccount} />
+          </Form.Item>
+          <Form.Item
+            name="name"
+            label="Account Name"
+            rules={[{ required: true, message: 'Account name is required' }]}
+          >
+            <Input placeholder="Enter account name" />
+          </Form.Item>
+          <Form.Item
+            name="type"
+            label="Account Type"
+            rules={[{ required: true, message: 'Account type is required' }]}
+          >
+            <Select
+              placeholder="Select account type"
+              disabled={!!editingAccount?.isSystemAccount}
+              options={Object.keys(TYPE_COLORS).map((t) => ({
+                label: t.toUpperCase(),
+                value: t,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="currency"
+            label="Currency"
+            initialValue="INR"
+          >
+            <Select
+              options={[
+                { label: 'INR - Indian Rupee', value: 'INR' },
+                { label: 'USD - US Dollar', value: 'USD' },
+                { label: 'EUR - Euro', value: 'EUR' },
+              ]}
+            />
+          </Form.Item>
+        </Form>
+      </Drawer>
     </Space>
   );
 }

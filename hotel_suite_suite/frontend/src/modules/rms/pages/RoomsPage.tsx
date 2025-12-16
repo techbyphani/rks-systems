@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Space, Select, Tag, Tooltip, Typography, Spin, message, Badge, Button, Segmented } from 'antd';
-import { HomeOutlined, AppstoreOutlined, UnorderedListOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Space, Select, Tag, Tooltip, Typography, Spin, message, Badge, Button, Segmented, Drawer, Form, Input, InputNumber, Switch } from 'antd';
+import { HomeOutlined, AppstoreOutlined, UnorderedListOutlined, ReloadOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons';
 import { PageHeader, StatusTag } from '@/components/shared';
 import { roomService } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Room, RoomType, RoomStatus } from '@/types';
 
 const { Text } = Typography;
@@ -21,6 +22,7 @@ const STATUS_COLORS: Record<RoomStatus, string> = {
 
 export default function RoomsPage() {
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
@@ -31,16 +33,22 @@ export default function RoomsPage() {
     roomTypeId?: string;
     floor?: number;
   }>({});
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [form] = Form.useForm();
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (tenant?.id) {
+      loadData();
+    }
+  }, [tenant?.id]);
 
   const loadData = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
       const [roomsData, typesData, floorsData] = await Promise.all([
-        roomService.getAll({ pageSize: 500 }),
+        roomService.getAll({ tenantId: tenant.id, pageSize: 500 }),
         roomService.getRoomTypes(),
         roomService.getFloors(),
       ]);
@@ -71,12 +79,59 @@ export default function RoomsPage() {
   };
 
   const handleStatusChange = async (roomId: string, newStatus: RoomStatus) => {
+    if (!tenant?.id) {
+      message.error('Tenant context not available');
+      return;
+    }
     try {
-      await roomService.updateStatus(roomId, newStatus);
+      await roomService.updateStatus(tenant.id, roomId, newStatus);
       message.success('Room status updated');
       loadData();
-    } catch (error) {
-      message.error('Failed to update room status');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to update room status');
+    }
+  };
+
+  const handleCreate = () => {
+    setEditingRoom(null);
+    form.resetFields();
+    setDrawerOpen(true);
+  };
+
+  const handleEdit = (room: Room, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingRoom(room);
+    form.setFieldsValue({
+      roomNumber: room.roomNumber,
+      roomTypeId: room.roomTypeId,
+      floor: room.floor,
+      building: room.building,
+      wing: room.wing,
+      isSmokingAllowed: room.isSmokingAllowed,
+      hasBalcony: room.hasBalcony,
+      viewType: room.viewType,
+      notes: room.notes,
+    });
+    setDrawerOpen(true);
+  };
+
+  const handleSubmit = async (values: any) => {
+    if (!tenant?.id) {
+      message.error('Tenant context not available');
+      return;
+    }
+    try {
+      if (editingRoom) {
+        await roomService.update(tenant.id, editingRoom.id, values);
+        message.success('Room updated');
+      } else {
+        await roomService.create(values);
+        message.success('Room created');
+      }
+      setDrawerOpen(false);
+      loadData();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to save room');
     }
   };
 
@@ -91,6 +146,14 @@ export default function RoomsPage() {
           minHeight: 100,
         }}
         bodyStyle={{ padding: 12 }}
+        actions={[
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            size="small"
+            onClick={(e) => handleEdit(room, e)}
+          />,
+        ]}
       >
         <Space direction="vertical" size={4} style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -154,9 +217,14 @@ export default function RoomsPage() {
           { label: 'Rooms' },
         ]}
         actions={
-          <Button icon={<ReloadOutlined />} onClick={loadData}>
-            Refresh
-          </Button>
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={loadData}>
+              Refresh
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+              Add Room
+            </Button>
+          </Space>
         }
       />
 
@@ -242,6 +310,93 @@ export default function RoomsPage() {
       ) : (
         <Card>{renderGridView()}</Card>
       )}
+
+      {/* Room Form Drawer */}
+      <Drawer
+        title={editingRoom ? 'Edit Room' : 'Add Room'}
+        width={600}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        extra={
+          <Space>
+            <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
+            <Button type="primary" onClick={() => form.submit()}>
+              {editingRoom ? 'Update' : 'Create'}
+            </Button>
+          </Space>
+        }
+      >
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="roomNumber"
+                label="Room Number"
+                rules={[{ required: true, message: 'Room number is required' }]}
+              >
+                <Input placeholder="e.g., 101" disabled={!!editingRoom} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="roomTypeId"
+                label="Room Type"
+                rules={[{ required: true, message: 'Room type is required' }]}
+              >
+                <Select placeholder="Select room type" options={roomTypes.map(rt => ({ label: rt.name, value: rt.id }))} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="floor"
+                label="Floor"
+                rules={[{ required: true, message: 'Floor is required' }]}
+              >
+                <InputNumber style={{ width: '100%' }} min={1} max={50} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="building" label="Building">
+                <Input placeholder="e.g., Main Tower" />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item name="wing" label="Wing">
+                <Input placeholder="e.g., East, West" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="viewType" label="View Type">
+                <Select placeholder="Select view type" options={[
+                  { label: 'City View', value: 'City View' },
+                  { label: 'Sea View', value: 'Sea View' },
+                  { label: 'Garden View', value: 'Garden View' },
+                  { label: 'Pool View', value: 'Pool View' },
+                ]} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="hasBalcony" label="Has Balcony" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item name="isSmokingAllowed" label="Smoking Allowed" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={3} placeholder="Additional notes about the room..." />
+          </Form.Item>
+        </Form>
+      </Drawer>
     </Space>
   );
 }

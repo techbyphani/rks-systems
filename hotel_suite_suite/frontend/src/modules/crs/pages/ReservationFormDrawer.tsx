@@ -19,6 +19,7 @@ import {
 import { SaveOutlined, UserOutlined, SearchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { reservationService, guestService, roomService, type CreateReservationDto } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Reservation, Guest, RoomType } from '@/types';
 
 interface ReservationFormDrawerProps {
@@ -53,6 +54,7 @@ export default function ReservationFormDrawer({
   onSuccess,
 }: ReservationFormDrawerProps) {
   const [form] = Form.useForm();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
@@ -88,25 +90,26 @@ export default function ReservationFormDrawer({
         });
       }
     }
-  }, [open, reservation, form]);
+  }, [open, reservation, form, tenant?.id]);
 
   const loadRoomTypes = async () => {
+    if (!tenant?.id) return;
     try {
-      const types = await roomService.getRoomTypes();
+      const types = await roomService.getRoomTypes(tenant.id);
       setRoomTypes(types);
     } catch (error) {
-      console.error('Failed to load room types');
+      // Error handling
     }
   };
 
   const handleGuestSearch = async (value: string) => {
-    if (value.length < 2) return;
+    if (value.length < 2 || !tenant?.id) return;
     setGuestSearchLoading(true);
     try {
-      const results = await guestService.search(value);
+      const results = await guestService.search(tenant.id, value);
       setGuests(results);
     } catch (error) {
-      console.error('Failed to search guests');
+      // Error handling
     } finally {
       setGuestSearchLoading(false);
     }
@@ -155,10 +158,18 @@ export default function ReservationFormDrawer({
       };
 
       if (isEditing) {
-        await reservationService.update(reservation.id, data);
+        if (!tenant?.id) {
+          message.error('Tenant context not available');
+          return;
+        }
+        await reservationService.update(tenant.id, reservation.id, data);
         message.success('Reservation updated successfully');
       } else {
-        await reservationService.create(data);
+        if (!tenant?.id) {
+          message.error('Tenant context not available');
+          return;
+        }
+        await reservationService.create(tenant.id, data);
         message.success('Reservation created successfully');
       }
       onSuccess();

@@ -32,7 +32,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 import { PageHeader, StatusTag } from '@/components/shared';
-import { taskService } from '@/api';
+import { housekeepingService } from '@/api';
 import type { HousekeepingTask, HousekeepingTaskStatus } from '@/types';
 
 const { Text, Title } = Typography;
@@ -46,76 +46,22 @@ const STATUS_COLORS: Record<HousekeepingTaskStatus, string> = {
   skipped: 'default',
 };
 
-// Mock housekeeping tasks for demo
-const mockHousekeepingTasks: HousekeepingTask[] = [
-  {
-    id: 'HK001',
-    roomId: 'room-101',
-    room: { roomNumber: '101', floor: 1 } as any,
-    type: 'checkout_clean',
-    status: 'pending',
-    priority: 'high',
-    scheduledDate: dayjs().format('YYYY-MM-DD'),
-    createdAt: dayjs().subtract(2, 'hour').toISOString(),
-    updatedAt: dayjs().subtract(2, 'hour').toISOString(),
-  },
-  {
-    id: 'HK002',
-    roomId: 'room-205',
-    room: { roomNumber: '205', floor: 2 } as any,
-    type: 'stayover_clean',
-    status: 'in_progress',
-    priority: 'normal',
-    assignedTo: 'emp-001',
-    assignedEmployee: { firstName: 'Maria', lastName: 'Garcia' } as any,
-    scheduledDate: dayjs().format('YYYY-MM-DD'),
-    startedAt: dayjs().subtract(30, 'minute').toISOString(),
-    createdAt: dayjs().subtract(3, 'hour').toISOString(),
-    updatedAt: dayjs().subtract(30, 'minute').toISOString(),
-  },
-  {
-    id: 'HK003',
-    roomId: 'room-301',
-    room: { roomNumber: '301', floor: 3 } as any,
-    type: 'checkout_clean',
-    status: 'completed',
-    priority: 'normal',
-    assignedTo: 'emp-002',
-    assignedEmployee: { firstName: 'Ana', lastName: 'Lopez' } as any,
-    scheduledDate: dayjs().format('YYYY-MM-DD'),
-    startedAt: dayjs().subtract(2, 'hour').toISOString(),
-    completedAt: dayjs().subtract(1, 'hour').toISOString(),
-    createdAt: dayjs().subtract(4, 'hour').toISOString(),
-    updatedAt: dayjs().subtract(1, 'hour').toISOString(),
-  },
-  {
-    id: 'HK004',
-    roomId: 'room-402',
-    room: { roomNumber: '402', floor: 4 } as any,
-    type: 'deep_clean',
-    status: 'assigned',
-    priority: 'low',
-    assignedTo: 'emp-003',
-    assignedEmployee: { firstName: 'Carlos', lastName: 'Silva' } as any,
-    scheduledDate: dayjs().format('YYYY-MM-DD'),
-    createdAt: dayjs().subtract(5, 'hour').toISOString(),
-    updatedAt: dayjs().subtract(1, 'hour').toISOString(),
-  },
-];
-
 export default function HousekeepingPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [tasks, setTasks] = useState<HousekeepingTask[]>(mockHousekeepingTasks);
+  const [tasks, setTasks] = useState<HousekeepingTask[]>([]);
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [statusFilter, setStatusFilter] = useState<HousekeepingTaskStatus | undefined>();
 
   const loadTasks = async () => {
     setLoading(true);
     try {
-      // In real implementation, call API
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setTasks(mockHousekeepingTasks);
+      const response = await housekeepingService.getAll({
+        scheduledDate: selectedDate.format('YYYY-MM-DD'),
+        status: statusFilter,
+        pageSize: 100,
+      });
+      setTasks(response.data);
     } catch (error) {
       message.error('Failed to load housekeeping tasks');
     } finally {
@@ -125,11 +71,7 @@ export default function HousekeepingPage() {
 
   useEffect(() => {
     loadTasks();
-  }, [selectedDate]);
-
-  const filteredTasks = statusFilter
-    ? tasks.filter((t) => t.status === statusFilter)
-    : tasks;
+  }, [selectedDate, statusFilter]);
 
   const taskCounts = tasks.reduce((acc, task) => {
     acc[task.status] = (acc[task.status] || 0) + 1;
@@ -142,21 +84,19 @@ export default function HousekeepingPage() {
 
   const handleStatusUpdate = async (taskId: string, newStatus: HousekeepingTaskStatus) => {
     try {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === taskId
-            ? {
-                ...t,
-                status: newStatus,
-                startedAt: newStatus === 'in_progress' ? dayjs().toISOString() : t.startedAt,
-                completedAt: newStatus === 'completed' ? dayjs().toISOString() : t.completedAt,
-              }
-            : t
-        )
-      );
+      if (newStatus === 'in_progress') {
+        await housekeepingService.start(taskId);
+      } else if (newStatus === 'completed') {
+        await housekeepingService.complete(taskId);
+      } else if (newStatus === 'verified') {
+        await housekeepingService.verify(taskId, 'current-user');
+      } else {
+        await housekeepingService.update(taskId, { status: newStatus });
+      }
       message.success('Task status updated');
-    } catch (error) {
-      message.error('Failed to update task');
+      loadTasks();
+    } catch (error: any) {
+      message.error(error.message || 'Failed to update task');
     }
   };
 
@@ -386,7 +326,7 @@ export default function HousekeepingPage() {
       <Card title={`Tasks for ${selectedDate.format('DD MMM YYYY')}`}>
         <Table
           columns={columns}
-          dataSource={filteredTasks}
+          dataSource={tasks}
           rowKey="id"
           loading={loading}
           pagination={false}

@@ -28,11 +28,13 @@ import {
   UserOutlined,
   FileTextOutlined,
   DeleteOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { PageHeader, StatusTag } from '@/components/shared';
 import { billingService } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Folio, FolioCharge, Payment, ChargeCategory, PaymentMethod } from '@/types';
 
 const { Text, Title } = Typography;
@@ -60,6 +62,7 @@ const PAYMENT_METHODS: { label: string; value: PaymentMethod }[] = [
 export default function FolioDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [folio, setFolio] = useState<Folio | null>(null);
@@ -69,15 +72,16 @@ export default function FolioDetailPage() {
   const [paymentForm] = Form.useForm();
 
   useEffect(() => {
-    if (id) {
+    if (id && tenant?.id) {
       loadFolio();
     }
-  }, [id]);
+  }, [id, tenant?.id]);
 
   const loadFolio = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
-      const data = await billingService.getFolioById(id!);
+      const data = await billingService.getFolioById(tenant.id, id!);
       setFolio(data);
     } catch (error) {
       message.error('Failed to load folio');
@@ -87,8 +91,12 @@ export default function FolioDetailPage() {
   };
 
   const handlePostCharge = async (values: any) => {
+    if (!tenant?.id) {
+      message.error('Tenant context not available');
+      return;
+    }
     try {
-      await billingService.postCharge(id!, {
+      await billingService.postCharge(tenant.id, id!, {
         category: values.category,
         description: values.description,
         quantity: values.quantity,
@@ -98,14 +106,18 @@ export default function FolioDetailPage() {
       setChargeModalOpen(false);
       chargeForm.resetFields();
       loadFolio();
-    } catch (error) {
-      message.error('Failed to post charge');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to post charge');
     }
   };
 
   const handleProcessPayment = async (values: any) => {
+    if (!tenant?.id) {
+      message.error('Tenant context not available');
+      return;
+    }
     try {
-      await billingService.processPayment(id!, {
+      await billingService.processPayment(tenant.id, id!, {
         amount: values.amount,
         method: values.method,
         referenceNumber: values.referenceNumber,
@@ -116,8 +128,8 @@ export default function FolioDetailPage() {
       setPaymentModalOpen(false);
       paymentForm.resetFields();
       loadFolio();
-    } catch (error) {
-      message.error('Failed to process payment');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to process payment');
     }
   };
 
@@ -130,8 +142,30 @@ export default function FolioDetailPage() {
           await billingService.voidCharge(id!, chargeId, 'Voided by user');
           message.success('Charge voided');
           loadFolio();
-        } catch (error) {
-          message.error('Failed to void charge');
+        } catch (error: any) {
+          message.error(error.message || 'Failed to void charge');
+        }
+      },
+    });
+  };
+
+  const handleCloseFolio = () => {
+    Modal.confirm({
+      title: 'Close Folio',
+      content: 'Are you sure you want to close this folio? This action cannot be undone.',
+      okText: 'Yes, Close',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          if (!tenant?.id) {
+            message.error('Tenant context not available');
+            return;
+          }
+          await billingService.closeFolio(tenant.id, id!);
+          message.success('Folio closed successfully');
+          loadFolio();
+        } catch (error: any) {
+          message.error(error.message || 'Failed to close folio');
         }
       },
     });
@@ -296,6 +330,15 @@ export default function FolioDetailPage() {
                 >
                   Collect Payment
                 </Button>
+                {folio.balance === 0 && (
+                  <Button
+                    type="default"
+                    icon={<FileTextOutlined />}
+                    onClick={handleCloseFolio}
+                  >
+                    Close Folio
+                  </Button>
+                )}
               </>
             )}
             <Button icon={<PrinterOutlined />} onClick={() => message.info('Print coming soon')}>
@@ -442,6 +485,30 @@ export default function FolioDetailPage() {
                 onClick={() => navigate(`/suite/crs/reservations/${folio.reservationId}`)}
               >
                 View Reservation
+              </Button>
+            )}
+            {folio.status === 'settled' && folio.balance === 0 && (
+              <Button
+                type="link"
+                block
+                icon={<FileTextOutlined />}
+                onClick={async () => {
+                  try {
+                    if (!tenant?.id) {
+                      message.error('Tenant context not available');
+                      return;
+                    }
+                    const invoice = await billingService.createInvoiceFromFolio(tenant.id, folio.id, {
+                      dueDate: dayjs().add(30, 'day').format('YYYY-MM-DD'),
+                    });
+                    message.success('Invoice generated successfully');
+                    navigate(`/suite/bms/invoices/${invoice.id}`);
+                  } catch (error: any) {
+                    message.error(error.message || 'Failed to generate invoice');
+                  }
+                }}
+              >
+                Generate Invoice
               </Button>
             )}
           </Card>

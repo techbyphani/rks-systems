@@ -1,26 +1,57 @@
-import { useState } from 'react';
-import { Card, Row, Col, Space, Button, Select, DatePicker, Statistic, Table, Progress, Typography } from 'antd';
+import { useState, useEffect } from 'react';
+import { Card, Row, Col, Space, Button, Select, DatePicker, Statistic, Table, Progress, Typography, Spin, message } from 'antd';
 import { DownloadOutlined, PrinterOutlined, LineChartOutlined, PieChartOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { PageHeader } from '@/components/shared';
+import { analyticsService } from '@/api';
 
 const { Title, Text } = Typography;
 
 export default function ReportsPage() {
+  const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState<string>('profit_loss');
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([dayjs().startOf('month'), dayjs()]);
+  const [plData, setPlData] = useState<{
+    revenue: { rooms: number; fnb: number; other: number; total: number };
+    expenses: { salaries: number; utilities: number; supplies: number; marketing: number; other: number; total: number };
+    netIncome: number;
+  } | null>(null);
+  const [occupancyData, setOccupancyData] = useState<Array<{ month: string; rate: number }>>([]);
 
-  // Mock report data
-  const plData = {
-    revenue: { rooms: 2850000, fnb: 890000, other: 245000, total: 3985000 },
-    expenses: { salaries: 980000, utilities: 245000, supplies: 180000, marketing: 120000, other: 185000, total: 1710000 },
-    netIncome: 2275000,
+  useEffect(() => {
+    if (reportType === 'profit_loss') {
+      loadProfitLossReport();
+    } else if (reportType === 'occupancy') {
+      loadOccupancyReport();
+    }
+  }, [reportType, dateRange]);
+
+  const loadProfitLossReport = async () => {
+    setLoading(true);
+    try {
+      const data = await analyticsService.getProfitLossReport(
+        dateRange[0].format('YYYY-MM-DD'),
+        dateRange[1].format('YYYY-MM-DD')
+      );
+      setPlData(data);
+    } catch (error) {
+      message.error('Failed to load profit & loss report');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const occupancyData = [
-    { month: 'Jan', rate: 72 }, { month: 'Feb', rate: 78 }, { month: 'Mar', rate: 82 },
-    { month: 'Apr', rate: 75 }, { month: 'May', rate: 68 }, { month: 'Jun', rate: 85 },
-  ];
+  const loadOccupancyReport = async () => {
+    setLoading(true);
+    try {
+      const data = await analyticsService.getOccupancyReport();
+      setOccupancyData(data);
+    } catch (error) {
+      message.error('Failed to load occupancy report');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const reportOptions = [
     { label: 'Profit & Loss', value: 'profit_loss' },
@@ -55,12 +86,54 @@ export default function ReportsPage() {
 
       {reportType === 'profit_loss' && (
         <>
-          <Row gutter={16}>
-            <Col xs={12} sm={6}><Card size="small"><Statistic title="Total Revenue" value={plData.revenue.total} prefix="₹" valueStyle={{ color: '#52c41a' }} /></Card></Col>
-            <Col xs={12} sm={6}><Card size="small"><Statistic title="Total Expenses" value={plData.expenses.total} prefix="₹" valueStyle={{ color: '#ff4d4f' }} /></Card></Col>
-            <Col xs={12} sm={6}><Card size="small"><Statistic title="Net Income" value={plData.netIncome} prefix="₹" valueStyle={{ color: '#1890ff', fontWeight: 600 }} /></Card></Col>
-            <Col xs={12} sm={6}><Card size="small"><Statistic title="Margin" value={Math.round((plData.netIncome / plData.revenue.total) * 100)} suffix="%" valueStyle={{ color: '#722ed1' }} /></Card></Col>
-          </Row>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 60 }}>
+              <Spin size="large" />
+            </div>
+          ) : plData ? (
+            <>
+              <Row gutter={16}>
+                <Col xs={12} sm={6}>
+                  <Card size="small">
+                    <Statistic 
+                      title="Total Revenue" 
+                      value={plData.revenue.total} 
+                      prefix="₹" 
+                      valueStyle={{ color: '#52c41a' }} 
+                    />
+                  </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                  <Card size="small">
+                    <Statistic 
+                      title="Total Expenses" 
+                      value={plData.expenses.total} 
+                      prefix="₹" 
+                      valueStyle={{ color: '#ff4d4f' }} 
+                    />
+                  </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                  <Card size="small">
+                    <Statistic 
+                      title="Net Income" 
+                      value={plData.netIncome} 
+                      prefix="₹" 
+                      valueStyle={{ color: '#1890ff', fontWeight: 600 }} 
+                    />
+                  </Card>
+                </Col>
+                <Col xs={12} sm={6}>
+                  <Card size="small">
+                    <Statistic 
+                      title="Margin" 
+                      value={plData.revenue.total > 0 ? Math.round((plData.netIncome / plData.revenue.total) * 100) : 0} 
+                      suffix="%" 
+                      valueStyle={{ color: '#722ed1' }} 
+                    />
+                  </Card>
+                </Col>
+              </Row>
 
           <Row gutter={16}>
             <Col xs={24} md={12}>
@@ -90,24 +163,28 @@ export default function ReportsPage() {
               </Card>
             </Col>
           </Row>
+            </>
+          ) : null}
         </>
       )}
 
       {reportType === 'occupancy' && (
-        <Card title="Occupancy Trends">
-          <Row gutter={16}>
-            <Col span={24}>
-              <Table
-                dataSource={occupancyData}
-                rowKey="month"
-                pagination={false}
-                columns={[
-                  { title: 'Month', dataIndex: 'month', key: 'month' },
-                  { title: 'Occupancy Rate', dataIndex: 'rate', key: 'rate', render: (rate: number) => <Progress percent={rate} style={{ width: 200 }} /> },
-                ]}
-              />
-            </Col>
-          </Row>
+        <Card title="Occupancy Trends" loading={loading}>
+          {occupancyData.length > 0 ? (
+            <Row gutter={16}>
+              <Col span={24}>
+                <Table
+                  dataSource={occupancyData}
+                  rowKey="month"
+                  pagination={false}
+                  columns={[
+                    { title: 'Month', dataIndex: 'month', key: 'month' },
+                    { title: 'Occupancy Rate', dataIndex: 'rate', key: 'rate', render: (rate: number) => <Progress percent={rate} style={{ width: 200 }} /> },
+                  ]}
+                />
+              </Col>
+            </Row>
+          ) : null}
         </Card>
       )}
 

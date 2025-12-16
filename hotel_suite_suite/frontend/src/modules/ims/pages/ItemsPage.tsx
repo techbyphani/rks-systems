@@ -3,8 +3,8 @@ import { Card, Row, Col, Space, Tag, Button, message, Table, Select, Input, Stat
 import { PlusOutlined, EditOutlined, SearchOutlined, AlertOutlined, WarningOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { PageHeader } from '@/components/shared';
-import { inventoryService } from '@/api';
-import type { InventoryItem, InventoryCategory, PaginatedResponse } from '@/types';
+import { inventoryService, categoryService } from '@/api';
+import type { InventoryItem, InventoryCategory, PaginatedResponse, InventoryItemUnit } from '@/types';
 
 export default function ItemsPage() {
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function ItemsPage() {
     try {
       const [itemsData, categoriesData] = await Promise.all([
         inventoryService.getAll({ search, categoryId: categoryFilter, isLowStock: showLowStock || undefined, page: 1, pageSize: 100 }),
-        Promise.resolve([] as InventoryCategory[]),
+        categoryService.getAll(),
       ]);
       setData(itemsData);
       setCategories(categoriesData);
@@ -46,19 +46,21 @@ export default function ItemsPage() {
   const handleSubmit = async (values: any) => {
     try {
       if (editingItem) {
-        // Mock update - in real app would call API
-      console.log('Update item:', editingItem.id, values);
-        message.success('Item updated');
+        await inventoryService.update(editingItem.id, values);
+        message.success('Item updated successfully');
       } else {
-        // Mock create - in real app would call API
-      console.log('Create item:', values);
-        message.success('Item created');
+        await inventoryService.create({
+          ...values,
+          isActive: true,
+        });
+        message.success('Item created successfully');
       }
       setDrawerOpen(false);
+      setEditingItem(null);
       form.resetFields();
       loadData();
-    } catch (error) {
-      message.error('Failed to save item');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to save item');
     }
   };
 
@@ -153,11 +155,21 @@ export default function ItemsPage() {
             <Col span={12}><Form.Item name="unitCost" label="Unit Cost" rules={[{ required: true }]}><InputNumber prefix="₹" style={{ width: '100%' }} min={0} /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}><Form.Item name="currentStock" label="Current Stock"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="parLevel" label="Par Level"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="reorderPoint" label="Reorder Point"><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="currentStock" label="Current Stock" initialValue={0}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="parLevel" label="Par Level" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="reorderPoint" label="Reorder Point" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
           </Row>
-          <Form.Item name="isPerishable" label="Perishable" valuePropName="checked"><Switch /></Form.Item>
+          <Row gutter={16}>
+            <Col span={12}><Form.Item name="reorderQuantity" label="Reorder Quantity" rules={[{ required: true }]}><InputNumber style={{ width: '100%' }} min={0} /></Form.Item></Col>
+            <Col span={12}><Form.Item name="location" label="Location"><Input placeholder="Storage location" /></Form.Item></Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}><Form.Item name="isPerishable" label="Perishable" valuePropName="checked" initialValue={false}><Switch /></Form.Item></Col>
+            {form.getFieldValue('isPerishable') && (
+              <Col span={12}><Form.Item name="expiryAlertDays" label="Expiry Alert (days)"><InputNumber style={{ width: '100%' }} min={1} /></Form.Item></Col>
+            )}
+          </Row>
+          <Form.Item name="description" label="Description"><Input.TextArea rows={3} /></Form.Item>
         </Form>
       </Drawer>
     </Space>

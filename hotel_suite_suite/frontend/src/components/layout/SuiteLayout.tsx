@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Button, Layout, Menu, Space, Tag, Typography, Dropdown, Avatar, Badge } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -32,6 +32,7 @@ export default function SuiteLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
+  const [menuOpenKeys, setMenuOpenKeys] = useState<string[]>([])
 
   if (!tenant || !user) {
     return null
@@ -114,17 +115,33 @@ export default function SuiteLayout() {
       return [path]
     }
     
-    // Check sub-menu paths
+    // IMPORTANT: Check sub-menu paths FIRST (before checking module paths)
+    // This ensures submenu items are selected, not the parent module
     for (const module of MODULES) {
       if (module.subMenu) {
+        // Check all submenu items first - they should take priority
         for (const sub of module.subMenu) {
-          if (path === sub.path || path.startsWith(sub.path + '/')) {
+          // Exact match
+          if (path === sub.path) {
+            return [sub.path]
+          }
+          // Path starts with submenu path (for detail pages like /suite/crs/guests/123)
+          // But exclude the module path itself to avoid matching dashboard
+          if (sub.path !== module.path && path.startsWith(sub.path + '/')) {
             return [sub.path]
           }
         }
-      }
-      if (path.startsWith(module.path)) {
-        return [module.path]
+        // Only if no submenu matches, check if it's the module dashboard (exact match)
+        if (path === module.path) {
+          // Return the dashboard submenu item if it exists
+          const dashboardSub = module.subMenu.find(sub => sub.path === module.path)
+          return dashboardSub ? [dashboardSub.path] : [module.path]
+        }
+      } else {
+        // Module without submenu - check if path matches
+        if (path === module.path || path.startsWith(module.path + '/')) {
+          return [module.path]
+        }
       }
     }
     
@@ -146,6 +163,15 @@ export default function SuiteLayout() {
     }
     return []
   }, [location.pathname])
+
+  // Update open keys when path changes or sidebar expands
+  useEffect(() => {
+    if (!collapsed) {
+      setMenuOpenKeys(openKeys)
+    } else {
+      setMenuOpenKeys([])
+    }
+  }, [openKeys, collapsed])
 
   // Current module info
   const currentModule = useMemo(() => {
@@ -203,12 +229,13 @@ export default function SuiteLayout() {
         collapsed={collapsed}
         width={240}
         style={{
-          background: '#001529',
+          background: 'linear-gradient(180deg, #1e3c72 0%, #2a5298 100%)',
           position: 'fixed',
           left: 0,
           top: 0,
           bottom: 0,
           overflow: 'auto',
+          boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
         }}
       >
         {/* Logo / Brand */}
@@ -223,7 +250,16 @@ export default function SuiteLayout() {
               <Title level={4} style={{ color: '#fff', margin: 0, marginBottom: 8 }}>
                 Hotel Suite
               </Title>
-              <Tag color="blue">{tenant.region}</Tag>
+              <Tag 
+                color="#1e88e5"
+                style={{ 
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff',
+                }}
+              >
+                {tenant.region}
+              </Tag>
               <Text
                 style={{
                   color: 'rgba(255,255,255,0.65)',
@@ -250,9 +286,14 @@ export default function SuiteLayout() {
           theme="dark"
           mode="inline"
           selectedKeys={selectedKeys}
-          defaultOpenKeys={collapsed ? [] : openKeys}
+          openKeys={collapsed ? [] : menuOpenKeys}
+          onOpenChange={setMenuOpenKeys}
           items={menuItems}
-          style={{ borderRight: 0, paddingTop: 8 }}
+          style={{ 
+            borderRight: 0, 
+            paddingTop: 8,
+            background: 'transparent',
+          }}
         />
       </Sider>
 
@@ -265,10 +306,11 @@ export default function SuiteLayout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderBottom: '1px solid #f0f0f0',
+            borderBottom: '1px solid #e8e8e8',
             position: 'sticky',
             top: 0,
             zIndex: 100,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           }}
         >
           <Space>
@@ -280,14 +322,14 @@ export default function SuiteLayout() {
             />
             {currentModule && (
               <Space>
-                <span style={{ color: currentModule.accent }}>{currentModule.icon}</span>
-                <Text strong>{currentModule.name}</Text>
+                <span style={{ color: currentModule.accent, fontSize: 18 }}>{currentModule.icon}</span>
+                <Text strong style={{ color: '#1e3c72', fontSize: 16 }}>{currentModule.name}</Text>
               </Space>
             )}
             {location.pathname.startsWith('/suite/admin') && (
               <Space>
-                <span style={{ color: '#722ed1' }}><SettingOutlined /></span>
-                <Text strong>Administration</Text>
+                <span style={{ color: '#1e88e5' }}><SettingOutlined /></span>
+                <Text strong style={{ color: '#1e3c72' }}>Administration</Text>
               </Space>
             )}
           </Space>
@@ -306,9 +348,12 @@ export default function SuiteLayout() {
 
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
-                <Badge dot={isHotelAdmin} offset={[-2, 2]} color="purple">
+                <Badge dot={isHotelAdmin} offset={[-2, 2]} color="#1e88e5">
                   <Avatar
-                    style={{ backgroundColor: isHotelAdmin ? '#722ed1' : '#1890ff' }}
+                    style={{ 
+                      backgroundColor: isHotelAdmin ? '#1e88e5' : '#2a5298',
+                      boxShadow: '0 2px 8px rgba(30, 136, 229, 0.3)',
+                    }}
                   >
                     {user.firstName[0]}{user.lastName[0]}
                   </Avatar>
@@ -326,7 +371,7 @@ export default function SuiteLayout() {
         <Content
           style={{
             padding: 24,
-            background: '#f5f5f5',
+            background: '#f8f9fa',
             minHeight: 'calc(100vh - 64px)',
           }}
         >

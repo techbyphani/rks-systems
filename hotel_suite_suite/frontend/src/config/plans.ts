@@ -125,7 +125,7 @@ export const MODULE_INFO: Record<ModuleId, { name: string; shortName: string; de
     name: 'Customer Reservation System',
     shortName: 'Reservations',
     description: 'Guest bookings, check-in/out, calendar',
-    color: '#1677ff',
+    color: '#1e88e5',
   },
   rms: {
     name: 'Rooms Management System',
@@ -149,7 +149,7 @@ export const MODULE_INFO: Record<ModuleId, { name: string; shortName: string; de
     name: 'Supply Management System',
     shortName: 'Supplies',
     description: 'Vendors, purchase orders, deliveries',
-    color: '#722ed1',
+    color: '#2a5298',
   },
   bms: {
     name: 'Billing Management System',

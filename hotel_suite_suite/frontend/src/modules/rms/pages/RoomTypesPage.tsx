@@ -56,12 +56,17 @@ export default function RoomTypesPage() {
 
   const handleSubmit = async (values: any) => {
     try {
-      // In a real app, this would call an API
-      message.success(editingType ? 'Room type updated' : 'Room type created');
+      if (editingType) {
+        await roomTypeService.update(editingType.id, values);
+        message.success('Room type updated');
+      } else {
+        await roomTypeService.create(values);
+        message.success('Room type created');
+      }
       setDrawerOpen(false);
       loadData();
-    } catch (error) {
-      message.error('Failed to save room type');
+    } catch (error: any) {
+      message.error(error.message || 'Failed to save room type');
     }
   };
 

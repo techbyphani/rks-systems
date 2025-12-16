@@ -4,6 +4,7 @@ import { LoginOutlined, FileTextOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { workflowService } from '@/api';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAppContext } from '@/context/AppContext';
 import type { Reservation, Room } from '@/types';
 
 const { Text } = Typography;
@@ -26,15 +27,22 @@ export default function CheckInModal({
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const { addNotification } = useNotifications();
+  const { tenant } = useAppContext();
 
   const handleCheckIn = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
       
+      if (!tenant?.id) {
+        message.error('Tenant context not available');
+        return;
+      }
+      
       // Use workflow service for integrated check-in
       // This will: 1) Check-in reservation, 2) Assign room, 3) Create folio
       const result = await workflowService.performCheckIn(
+        tenant.id,
         reservation.id,
         values.roomId,
         values.notes

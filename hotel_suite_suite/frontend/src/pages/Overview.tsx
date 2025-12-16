@@ -47,9 +47,10 @@ export default function OverviewPage() {
   }, [])
 
   const loadDashboardData = async () => {
+    if (!tenant?.id) return;
     setLoading(true)
     try {
-      const summary = await workflowService.getOperationalSummary()
+      const summary = await workflowService.getOperationalSummary(tenant.id)
       setData(summary)
       setLastUpdated(new Date())
     } catch (error) {
@@ -140,13 +141,13 @@ export default function OverviewPage() {
               <Card 
                 hoverable 
                 onClick={() => navigate('/suite/crs/reservations')}
-                style={{ borderTop: '3px solid #1890ff' }}
+                style={{ borderTop: '3px solid #1e88e5' }}
               >
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Space align="start" style={{ justifyContent: 'space-between', width: '100%' }}>
                     <div>
                       <Text type="secondary">Today's Departures</Text>
-                      <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
+                      <Title level={2} style={{ margin: 0, color: '#1e88e5' }}>
                         {data?.departures.expected || 0}
                       </Title>
                     </div>
@@ -155,18 +156,18 @@ export default function OverviewPage() {
                         width: 48, 
                         height: 48, 
                         borderRadius: '50%', 
-                        background: '#e6f7ff',
+                        background: '#e3f2fd',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
                     >
-                      <LogoutOutlined style={{ fontSize: 24, color: '#1890ff' }} />
+                      <LogoutOutlined style={{ fontSize: 24, color: '#1e88e5' }} />
                     </div>
                   </Space>
                   <Progress 
                     percent={data?.departures.expected ? Math.round((data.departures.completed / data.departures.expected) * 100) : 0}
-                    strokeColor="#1890ff"
+                    strokeColor="#1e88e5"
                     size="small"
                   />
                   <Text type="secondary" style={{ fontSize: 12 }}>
@@ -181,13 +182,13 @@ export default function OverviewPage() {
               <Card 
                 hoverable 
                 onClick={() => navigate('/suite/rms/rooms')}
-                style={{ borderTop: '3px solid #722ed1' }}
+                style={{ borderTop: '3px solid #2a5298' }}
               >
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Space align="start" style={{ justifyContent: 'space-between', width: '100%' }}>
                     <div>
                       <Text type="secondary">Occupancy Rate</Text>
-                      <Title level={2} style={{ margin: 0, color: '#722ed1' }}>
+                      <Title level={2} style={{ margin: 0, color: '#2a5298' }}>
                         {data?.occupancy || 0}%
                       </Title>
                     </div>
@@ -196,18 +197,18 @@ export default function OverviewPage() {
                         width: 48, 
                         height: 48, 
                         borderRadius: '50%', 
-                        background: '#f9f0ff',
+                        background: '#e8f0f8',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                       }}
                     >
-                      <HomeOutlined style={{ fontSize: 24, color: '#722ed1' }} />
+                      <HomeOutlined style={{ fontSize: 24, color: '#2a5298' }} />
                     </div>
                   </Space>
                   <Progress 
                     percent={data?.occupancy || 0}
-                    strokeColor="#722ed1"
+                    strokeColor="#2a5298"
                     size="small"
                   />
                   <Text type="secondary" style={{ fontSize: 12 }}>
@@ -318,13 +319,13 @@ export default function OverviewPage() {
             <Row gutter={[16, 16]}>
               {allowedModules.slice(0, 9).map((moduleId) => {
                 const moduleConfig: Record<string, { label: string; path: string; color: string; icon: React.ReactNode }> = {
-                  crs: { label: 'Reservations', path: '/suite/crs/reservations', color: '#1677ff', icon: <CalendarOutlined /> },
+                  crs: { label: 'Reservations', path: '/suite/crs/reservations', color: '#1e88e5', icon: <CalendarOutlined /> },
                   rms: { label: 'Room Status', path: '/suite/rms/rooms', color: '#13c2c2', icon: <HomeOutlined /> },
                   bms: { label: 'Billing', path: '/suite/bms/folios', color: '#eb2f96', icon: <DollarCircleOutlined /> },
                   oms: { label: 'Orders', path: '/suite/oms/orders', color: '#fa8c16', icon: <CheckSquareOutlined /> },
                   tms: { label: 'Tasks', path: '/suite/tms/tasks', color: '#52c41a', icon: <CheckSquareOutlined /> },
                   ims: { label: 'Inventory', path: '/suite/ims/items', color: '#a0d911', icon: <CheckSquareOutlined /> },
-                  sms: { label: 'Suppliers', path: '/suite/sms/vendors', color: '#722ed1', icon: <UserOutlined /> },
+                  sms: { label: 'Suppliers', path: '/suite/sms/vendors', color: '#2a5298', icon: <UserOutlined /> },
                   ams: { label: 'Attendance', path: '/suite/ams/attendance', color: '#fa541c', icon: <UserOutlined /> },
                   as: { label: 'Reports', path: '/suite/as/reports', color: '#08979c', icon: <CheckSquareOutlined /> },
                 }

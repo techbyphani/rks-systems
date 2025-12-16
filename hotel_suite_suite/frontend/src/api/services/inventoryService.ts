@@ -1,5 +1,5 @@
 import type { InventoryItem, InventoryCategory, Vendor, StockMovement, PaginatedResponse } from '@/types';
-import { mockInventoryItems, mockInventoryCategories, mockVendors, getLowStockItems } from '../mockData';
+import { mockInventoryItems, mockInventoryCategories, mockVendors } from '../mockData';
 import { delay, generateId, now, paginate } from '../helpers';
 
 // In-memory stores
@@ -104,11 +104,95 @@ export const inventoryService = {
   },
 
   /**
+   * Create a new inventory item
+   */
+  async create(data: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<InventoryItem> {
+    await delay(400);
+    
+    // Check if SKU already exists
+    if (items.some(i => i.sku === data.sku)) {
+      throw new Error('SKU already exists');
+    }
+    
+    const newItem: InventoryItem = {
+      ...data,
+      id: generateId(),
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    
+    items.unshift(newItem);
+    return newItem;
+  },
+
+  /**
+   * Update an inventory item
+   */
+  async update(id: string, data: Partial<InventoryItem>): Promise<InventoryItem> {
+    await delay(400);
+    
+    const index = items.findIndex(i => i.id === id);
+    if (index === -1) throw new Error('Item not found');
+    
+    // Check SKU uniqueness if changing
+    if (data.sku && items.some((i, idx) => i.sku === data.sku && idx !== index)) {
+      throw new Error('SKU already exists');
+    }
+    
+    items[index] = {
+      ...items[index],
+      ...data,
+      updatedAt: now(),
+    };
+    
+    return items[index];
+  },
+
+  /**
+   * Delete an inventory item
+   */
+  async delete(id: string): Promise<void> {
+    await delay(300);
+    
+    const index = items.findIndex(i => i.id === id);
+    if (index === -1) throw new Error('Item not found');
+    
+    // Soft delete by marking as inactive
+    items[index] = {
+      ...items[index],
+      isActive: false,
+      updatedAt: now(),
+    };
+  },
+
+  /**
    * Get low stock items
    */
   async getLowStock(): Promise<InventoryItem[]> {
     await delay(200);
-    return getLowStockItems();
+    return items.filter(i => i.isActive && i.currentStock <= i.reorderPoint);
+  },
+
+  /**
+   * Get all stock movements
+   */
+  async getAllStockMovements(filters: { itemId?: string; type?: StockMovement['type']; page?: number; pageSize?: number } = {}): Promise<PaginatedResponse<StockMovement>> {
+    await delay(300);
+    
+    let result = [...stockMovements];
+    
+    if (filters.itemId) {
+      result = result.filter(m => m.itemId === filters.itemId);
+    }
+    
+    if (filters.type) {
+      result = result.filter(m => m.type === filters.type);
+    }
+    
+    // Sort by date descending
+    result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    
+    return paginate(result, filters.page || 1, filters.pageSize || 10);
   },
 
   /**
@@ -116,7 +200,7 @@ export const inventoryService = {
    */
   async getStockMovements(itemId: string): Promise<StockMovement[]> {
     await delay(200);
-    return stockMovements.filter(m => m.itemId === itemId);
+    return stockMovements.filter(m => m.itemId === itemId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
 
   /**
@@ -147,12 +231,70 @@ export const inventoryService = {
 export const categoryService = {
   async getAll(): Promise<InventoryCategory[]> {
     await delay(200);
-    return categories.filter(c => c.isActive);
+    return categories.filter(c => c.isActive).sort((a, b) => a.name.localeCompare(b.name));
   },
 
   async getById(id: string): Promise<InventoryCategory | null> {
     await delay(200);
     return categories.find(c => c.id === id) || null;
+  },
+
+  async create(data: Omit<InventoryCategory, 'id' | 'createdAt' | 'updatedAt'>): Promise<InventoryCategory> {
+    await delay(400);
+    
+    // Check if name already exists
+    if (categories.some(c => c.name.toLowerCase() === data.name.toLowerCase())) {
+      throw new Error('Category name already exists');
+    }
+    
+    const newCategory: InventoryCategory = {
+      ...data,
+      id: generateId(),
+      createdAt: now(),
+      updatedAt: now(),
+    };
+    
+    categories.unshift(newCategory);
+    return newCategory;
+  },
+
+  async update(id: string, data: Partial<InventoryCategory>): Promise<InventoryCategory> {
+    await delay(400);
+    
+    const index = categories.findIndex(c => c.id === id);
+    if (index === -1) throw new Error('Category not found');
+    
+    // Check name uniqueness if changing
+    if (data.name && categories.some((c, idx) => c.name.toLowerCase() === data.name!.toLowerCase() && idx !== index)) {
+      throw new Error('Category name already exists');
+    }
+    
+    categories[index] = {
+      ...categories[index],
+      ...data,
+      updatedAt: now(),
+    };
+    
+    return categories[index];
+  },
+
+  async delete(id: string): Promise<void> {
+    await delay(300);
+    
+    const index = categories.findIndex(c => c.id === id);
+    if (index === -1) throw new Error('Category not found');
+    
+    // Check if category is in use
+    if (items.some(i => i.categoryId === id)) {
+      throw new Error('Cannot delete category that has items');
+    }
+    
+    // Soft delete
+    categories[index] = {
+      ...categories[index],
+      isActive: false,
+      updatedAt: now(),
+    };
   },
 };
 
@@ -210,5 +352,19 @@ export const vendorService = {
     };
     
     return vendors[index];
+  },
+
+  async delete(id: string): Promise<void> {
+    await delay(300);
+    
+    const index = vendors.findIndex(v => v.id === id);
+    if (index === -1) throw new Error('Vendor not found');
+    
+    // Soft delete
+    vendors[index] = {
+      ...vendors[index],
+      status: 'inactive',
+      updatedAt: now(),
+    };
   },
 };

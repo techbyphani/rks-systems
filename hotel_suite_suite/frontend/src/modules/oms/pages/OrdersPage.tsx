@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import { PageHeader, StatusTag } from '@/components/shared';
 import { orderService, workflowService } from '@/api';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAppContext } from '@/context/AppContext';
 import type { Order, OrderStatus, PaginatedResponse } from '@/types';
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
@@ -23,8 +24,17 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 export default function OrdersPage() {
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PaginatedResponse<Order> | null>(null);
+  const [stats, setStats] = useState<{
+    todaysOrders: number;
+    pendingOrders: number;
+    roomServiceOpen: number;
+    todaysRevenue: number;
+    averageOrderValue: number;
+    averagePrepTime: number;
+  } | null>(null);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>();
 
   useEffect(() => {
@@ -34,8 +44,12 @@ export default function OrdersPage() {
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const result = await orderService.getAll({ status: statusFilter, page: 1, pageSize: 50 });
-      setData(result);
+      const [ordersData, statsData] = await Promise.all([
+        orderService.getAll({ status: statusFilter, page: 1, pageSize: 50 }),
+        orderService.getStats(),
+      ]);
+      setData(ordersData);
+      setStats(statsData);
     } catch (error) {
       message.error('Failed to load orders');
     } finally {
@@ -64,16 +78,21 @@ export default function OrdersPage() {
       content: `Post ₹${order.totalAmount.toLocaleString('en-IN')} to guest folio and mark order as complete?`,
       okText: 'Complete & Charge',
       cancelText: 'Cancel',
-      onOk: async () => {
-        try {
-          // Post charge to guest folio
-          await workflowService.postCrossModuleCharge(order.guestId!, {
-            category: 'food_beverage',
-            description: `Order ${order.orderNumber} - ${order.items?.length || 0} items`,
-            amount: order.totalAmount,
-            referenceType: 'order',
-            referenceId: order.id,
-          });
+        onOk: async () => {
+          try {
+            if (!tenant?.id) {
+              message.error('Tenant context not available');
+              return;
+            }
+            
+            // Post charge to guest folio
+            await workflowService.postCrossModuleCharge(tenant.id, order.guestId!, {
+              category: 'food_beverage',
+              description: `Order ${order.orderNumber} - ${order.items?.length || 0} items`,
+              amount: order.totalAmount,
+              referenceType: 'order',
+              referenceId: order.id,
+            });
 
           // Update order status
           await orderService.updateStatus(order.id, 'completed');
@@ -221,7 +240,11 @@ export default function OrdersPage() {
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="Avg. Time" value="14" suffix="min" />
+            <Statistic 
+              title="Avg. Time" 
+              value={stats?.averagePrepTime || 14} 
+              suffix="min" 
+            />
           </Card>
         </Col>
       </Row>

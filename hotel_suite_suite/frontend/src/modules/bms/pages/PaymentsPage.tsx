@@ -6,10 +6,12 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { PageHeader, DataTable, StatusTag } from '@/components/shared';
 import { billingService } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Payment, PaymentMethod, PaginatedResponse } from '@/types';
 
 export default function PaymentsPage() {
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PaginatedResponse<Payment> | null>(null);
   const [filters, setFilters] = useState<{
@@ -22,15 +24,18 @@ export default function PaymentsPage() {
   const [todaysTotal, setTodaysTotal] = useState(0);
 
   useEffect(() => {
-    loadData();
-  }, [filters]);
+    if (tenant?.id) {
+      loadData();
+    }
+  }, [filters, tenant?.id]);
 
   const loadData = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
       const [paymentsData, breakdownData] = await Promise.all([
-        billingService.getAllPayments(filters),
-        billingService.getPaymentBreakdown(),
+        billingService.getAllPayments({ ...filters, tenantId: tenant.id }),
+        billingService.getPaymentBreakdown(tenant.id),
       ]);
       setData(paymentsData);
       setBreakdown(breakdownData);

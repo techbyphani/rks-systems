@@ -1,5 +1,5 @@
 import type { Order, OrderItem, MenuItem, Menu, OrderStatus, OrderType, PaginatedResponse } from '@/types';
-import { mockOrders, mockMenuItems, mockMenus, getTodaysOrders, getPendingOrders } from '../mockData';
+import { mockOrders, mockMenuItems, mockMenus } from '../mockData';
 import { delay, generateId, now, paginate } from '../helpers';
 
 // In-memory stores
@@ -172,7 +172,7 @@ export const orderService = {
    */
   async getPending(): Promise<Order[]> {
     await delay(200);
-    return getPendingOrders();
+    return orders.filter(o => ['pending', 'confirmed', 'preparing'].includes(o.status));
   },
 
   /**
@@ -180,7 +180,7 @@ export const orderService = {
    */
   async getTodays(): Promise<Order[]> {
     await delay(200);
-    return getTodaysOrders();
+    return orders.filter(o => o.orderedAt.startsWith(today));
   },
 
   /**
@@ -189,21 +189,30 @@ export const orderService = {
   async getStats(): Promise<{
     todaysOrders: number;
     pendingOrders: number;
+    roomServiceOpen: number;
     todaysRevenue: number;
     averageOrderValue: number;
+    averagePrepTime: number;
   }> {
     await delay(200);
     
-    const todaysOrders = getTodaysOrders();
-    const completedToday = todaysOrders.filter(o => o.status === 'completed');
+    const todaysOrdersList = orders.filter(o => o.orderedAt.startsWith(today));
+    const completedToday = todaysOrdersList.filter(o => o.status === 'completed');
+    const pendingOrdersList = orders.filter(o => ['pending', 'confirmed', 'preparing', 'ready', 'delivering'].includes(o.status));
+    const roomServiceOpen = orders.filter(o => o.type === 'room_service' && !['completed', 'cancelled'].includes(o.status)).length;
+    
+    // Calculate average prep time (mock calculation)
+    const averagePrepTime = 14; // This would be calculated from actual timestamps
     
     return {
-      todaysOrders: todaysOrders.length,
-      pendingOrders: getPendingOrders().length,
+      todaysOrders: todaysOrdersList.length,
+      pendingOrders: pendingOrdersList.length,
+      roomServiceOpen,
       todaysRevenue: completedToday.reduce((sum, o) => sum + o.totalAmount, 0),
       averageOrderValue: completedToday.length > 0 
         ? Math.round(completedToday.reduce((sum, o) => sum + o.totalAmount, 0) / completedToday.length)
         : 0,
+      averagePrepTime,
     };
   },
 };
@@ -242,7 +251,8 @@ export const menuService = {
    */
   async getAllMenus(): Promise<Menu[]> {
     await delay(200);
-    return mockMenus;
+    // Return menus from mock data (menus are typically static configuration)
+    return [...mockMenus];
   },
 
   /**

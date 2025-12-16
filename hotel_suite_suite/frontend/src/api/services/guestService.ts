@@ -1,6 +1,7 @@
 import type { Guest, PaginatedResponse } from '@/types';
 import { mockGuests } from '../mockData';
 import { delay, generateId, now, paginate, filterByText, sortBy } from '../helpers';
+import { requireTenantId, filterByTenant, findByIdAndTenant } from '../helpers/tenantFilter';
 
 // In-memory store
 let guests = [...mockGuests];
@@ -66,20 +67,25 @@ export const guestService = {
 
   /**
    * Get a single guest by ID
+   * CRITICAL FIX: Added tenant isolation
    */
-  async getById(id: string): Promise<Guest | null> {
+  async getById(tenantId: string, id: string): Promise<Guest | null> {
     await delay(200);
-    return guests.find(g => g.id === id) || null;
+    requireTenantId(tenantId);
+    return findByIdAndTenant(guests, id, tenantId);
   },
 
   /**
    * Search guests by name, email, or phone
+   * CRITICAL FIX: Added tenant isolation
    */
-  async search(query: string): Promise<Guest[]> {
+  async search(tenantId: string, query: string): Promise<Guest[]> {
     await delay(200);
     if (!query || query.length < 2) return [];
     
-    return filterByText(guests, query, ['firstName', 'lastName', 'email', 'phone']).slice(0, 10);
+    requireTenantId(tenantId);
+    const tenantGuests = filterByTenant(guests, tenantId) as Guest[];
+    return filterByText(tenantGuests, query, ['firstName', 'lastName', 'email', 'phone']).slice(0, 10);
   },
 
   /**

@@ -84,7 +84,7 @@ const vipStatusColors: Record<GuestVipStatus, string> = {
 // Generic Status Tag
 interface StatusTagProps {
   status: string;
-  type?: 'reservation' | 'room' | 'order' | 'task' | 'payment' | 'folio' | 'leave' | 'vip';
+  type?: 'reservation' | 'room' | 'order' | 'task' | 'payment' | 'folio' | 'leave' | 'vip' | 'invoice';
   showDot?: boolean;
 }
 

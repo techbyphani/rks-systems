@@ -42,6 +42,7 @@ export type GuestIdType = 'passport' | 'national_id' | 'driving_license' | 'othe
 
 export interface Guest extends Timestamps {
   id: ID;
+  tenantId?: string; // CRITICAL: Tenant isolation
   firstName: string;
   lastName: string;
   email: string;
@@ -102,6 +103,7 @@ export type PaymentMode = 'prepaid' | 'pay_at_hotel' | 'corporate_billing';
 
 export interface Reservation extends Timestamps {
   id: ID;
+  tenantId?: string; // CRITICAL: Tenant isolation
   confirmationNumber: string;
   guestId: ID;
   guest?: Guest;
@@ -174,6 +176,7 @@ export interface RoomType extends Timestamps {
 
 export interface Room extends Timestamps {
   id: ID;
+  tenantId?: string; // CRITICAL: Tenant isolation
   roomNumber: string;
   roomTypeId: ID;
   roomType?: RoomType;
@@ -588,6 +591,7 @@ export type FolioStatus = 'open' | 'closed' | 'settled' | 'disputed';
 
 export interface Folio extends Timestamps {
   id: ID;
+  tenantId?: string; // CRITICAL: Tenant isolation
   folioNumber: string;
   reservationId: ID;
   reservation?: Reservation;
@@ -655,6 +659,7 @@ export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'p
 
 export interface Payment extends Timestamps {
   id: ID;
+  tenantId?: string; // CRITICAL: Tenant isolation
   receiptNumber: string;
   folioId: ID;
   folio?: Folio;
@@ -677,6 +682,7 @@ export type InvoiceStatus = 'draft' | 'issued' | 'sent' | 'paid' | 'overdue' | '
 
 export interface Invoice extends Timestamps {
   id: ID;
+  tenantId?: string; // CRITICAL: Tenant isolation
   invoiceNumber: string;
   folioId: ID;
   folio?: Folio;

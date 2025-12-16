@@ -6,10 +6,12 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { PageHeader, DataTable, StatusTag } from '@/components/shared';
 import { billingService, type FolioFilters } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Folio, PaginatedResponse } from '@/types';
 
 export default function FoliosPage() {
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<PaginatedResponse<Folio> | null>(null);
   const [filters, setFilters] = useState<FolioFilters>({ page: 1, pageSize: 10 });
@@ -27,9 +29,10 @@ export default function FoliosPage() {
   const loadData = async () => {
     setLoading(true);
     try {
+      if (!tenant?.id) return;
       const [foliosData, metricsData] = await Promise.all([
-        billingService.getAllFolios(filters),
-        billingService.getMetrics(),
+        billingService.getAllFolios({ ...filters, tenantId: tenant.id }),
+        billingService.getMetrics(tenant.id),
       ]);
       setData(foliosData);
       setMetrics(metricsData);
@@ -46,6 +49,27 @@ export default function FoliosPage() {
 
   const handlePageChange = (page: number, pageSize: number) => {
     setFilters((prev) => ({ ...prev, page, pageSize }));
+  };
+
+  const handleGenerateInvoice = async (folio: Folio) => {
+    if (!tenant?.id) {
+      message.error('Tenant context not available');
+      return;
+    }
+    if (folio.balance > 0) {
+      message.warning('Please settle the folio balance before generating an invoice');
+      return;
+    }
+    
+    try {
+      const invoice = await billingService.createInvoiceFromFolio(tenant.id, folio.id, {
+        dueDate: dayjs().add(30, 'day').format('YYYY-MM-DD'),
+      });
+      message.success('Invoice generated successfully');
+      navigate(`/suite/bms/invoices/${invoice.id}`);
+    } catch (error: any) {
+      message.error(error.message || 'Failed to generate invoice');
+    }
   };
 
   const columns: ColumnsType<Folio> = [
@@ -144,7 +168,7 @@ export default function FoliosPage() {
                 key: 'invoice',
                 icon: <FileTextOutlined />,
                 label: 'Generate Invoice',
-                onClick: () => message.info('Invoice generation coming soon'),
+                onClick: () => handleGenerateInvoice(record),
               },
             ],
           }}

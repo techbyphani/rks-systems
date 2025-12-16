@@ -5,17 +5,11 @@ import { CalendarOutlined, TeamOutlined, WifiOutlined, PlusOutlined, LoginOutlin
 import dayjs from 'dayjs';
 import { reservationService, guestService } from '@/api';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAppContext } from '@/context/AppContext';
 import { StatusTag } from '@/components/shared';
 import type { Reservation } from '@/types';
 
 const { Title, Text } = Typography
-
-const channelMix = [
-  { channel: 'Website', percentage: 46, status: 'Up 5% WoW' },
-  { channel: 'OTA', percentage: 33, status: 'Flat' },
-  { channel: 'Corporate', percentage: 14, status: 'Up 2 contracts' },
-  { channel: 'Walk-in', percentage: 7, status: 'Down 2 bookings' },
-]
 
 interface DashboardStats {
   todaysArrivals: number;
@@ -25,27 +19,41 @@ interface DashboardStats {
   confirmedUpcoming: number;
 }
 
+interface ChannelStat {
+  channel: string;
+  percentage: number;
+  count: number;
+  status: string;
+}
+
 export default function CRSDashboard() {
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [arrivals, setArrivals] = useState<Reservation[]>([]);
+  const [channelMix, setChannelMix] = useState<ChannelStat[]>([]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (tenant?.id) {
+      loadData();
+    }
+  }, [tenant?.id]);
 
   const loadData = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
-      const [statsData, arrivalsData] = await Promise.all([
-        reservationService.getStats(),
-        reservationService.getTodaysArrivals(),
+      const [statsData, arrivalsData, channelStats] = await Promise.all([
+        reservationService.getStats(tenant.id),
+        reservationService.getTodaysArrivals(tenant.id),
+        reservationService.getChannelStats(tenant.id),
       ]);
       setStats(statsData);
       setArrivals(arrivalsData.slice(0, 5));
+      setChannelMix(channelStats);
     } catch (error) {
-      console.error('Failed to load dashboard data');
+      // Error handling
     } finally {
       setLoading(false);
     }

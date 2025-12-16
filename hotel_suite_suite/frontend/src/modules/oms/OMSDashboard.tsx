@@ -1,17 +1,69 @@
-import { Card, Col, List, Row, Space, Statistic, Steps, Tag, Typography } from 'antd'
+import { useEffect, useState } from 'react';
+import { Card, Col, List, Row, Space, Statistic, Steps, Tag, Typography, Spin, message } from 'antd'
 import { CoffeeOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { orderService } from '@/api';
+import type { Order } from '@/types';
 
 const { Title, Text } = Typography
 
-const orderQueue = [
-  { id: 'RS-1045', guest: 'Room 1107', items: 3, status: 'In Prep', eta: '12 min' },
-  { id: 'FL-209', guest: 'Pool Bar', items: 5, status: 'Awaiting Runner', eta: '5 min' },
-  { id: 'IR-88', guest: 'Villa 03', items: 2, status: 'Out for delivery', eta: '2 min' },
-]
+const workflow = ['Received', 'Kitchen', 'Runner', 'Delivered'];
 
-const workflow = ['Received', 'Kitchen', 'Runner', 'Delivered']
+const getWorkflowStep = (status: Order['status']): number => {
+  const statusMap: Record<Order['status'], number> = {
+    pending: 0,
+    confirmed: 0,
+    preparing: 1,
+    ready: 2,
+    delivering: 2,
+    delivered: 3,
+    completed: 3,
+    cancelled: -1,
+  };
+  return statusMap[status] ?? 0;
+};
 
 export default function OMSDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<{
+    todaysOrders: number;
+    pendingOrders: number;
+    roomServiceOpen: number;
+    todaysRevenue: number;
+    averageOrderValue: number;
+    averagePrepTime: number;
+  } | null>(null);
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
+  const [internalOrders, setInternalOrders] = useState<Order[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [statsData, pendingData] = await Promise.all([
+        orderService.getStats(),
+        orderService.getPending(),
+      ]);
+      setStats(statsData);
+      setPendingOrders(pendingData.filter(o => o.type === 'room_service').slice(0, 5));
+      setInternalOrders(pendingData.filter(o => o.type === 'internal_requisition').slice(0, 5));
+    } catch (error) {
+      message.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 100 }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div>
@@ -22,26 +74,46 @@ export default function OMSDashboard() {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="Room Service" value={28} suffix="open" valueStyle={{ color: '#fa8c16' }} />
-            <Text type="secondary">Median prep 14 min</Text>
+            <Statistic 
+              title="Room Service" 
+              value={stats?.roomServiceOpen || 0} 
+              suffix="open" 
+              valueStyle={{ color: '#fa8c16' }} 
+            />
+            <Text type="secondary">Median prep {stats?.averagePrepTime || 0} min</Text>
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="POS Orders" value={64} suffix="today" valueStyle={{ color: '#1677ff' }} />
-            <Text type="secondary">Pool bar driving 32%</Text>
+            <Statistic 
+              title="Today's Orders" 
+              value={stats?.todaysOrders || 0} 
+              suffix="orders" 
+              valueStyle={{ color: '#1677ff' }} 
+            />
+            <Text type="secondary">Revenue ₹{stats?.todaysRevenue?.toLocaleString('en-IN') || 0}</Text>
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="Internal Requisitions" value={9} suffix="pending" valueStyle={{ color: '#722ed1' }} />
-            <Text type="secondary">Linked to IMS</Text>
+            <Statistic 
+              title="Pending Orders" 
+              value={stats?.pendingOrders || 0} 
+              suffix="orders" 
+              valueStyle={{ color: '#722ed1' }} 
+            />
+            <Text type="secondary">Awaiting processing</Text>
           </Card>
         </Col>
         <Col xs={24} md={6}>
           <Card>
-            <Statistic title="Average CSAT" value={4.7} suffix="/5" valueStyle={{ color: '#52c41a' }} />
-            <Text type="secondary">Based on 63 surveys</Text>
+            <Statistic 
+              title="Avg Order Value" 
+              value={stats?.averageOrderValue || 0} 
+              prefix="₹" 
+              valueStyle={{ color: '#52c41a' }} 
+            />
+            <Text type="secondary">Based on today's orders</Text>
           </Card>
         </Col>
       </Row>
@@ -49,49 +121,62 @@ export default function OMSDashboard() {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
           <Card title="Room Service Queue" extra={<CoffeeOutlined />}>
-            <List
-              dataSource={orderQueue}
-              renderItem={(order) => (
-                <List.Item>
-                  <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                    <Space style={{ justifyContent: 'space-between' }}>
-                      <Text strong>{order.id}</Text>
-                      <Tag color="orange">{order.status}</Tag>
-                    </Space>
-                    <Text type="secondary">
-                      {order.guest} · {order.items} items · ETA {order.eta}
-                    </Text>
-                    <Steps
-                      current={workflow.indexOf('Runner')}
-                      size="small"
-                      items={workflow.map((label) => ({ title: label }))}
-                    />
-                  </Space>
-                </List.Item>
-              )}
-            />
+            {pendingOrders.length > 0 ? (
+              <List
+                dataSource={pendingOrders}
+                renderItem={(order) => {
+                  const currentStep = getWorkflowStep(order.status);
+                  return (
+                    <List.Item>
+                      <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                        <Space style={{ justifyContent: 'space-between' }}>
+                          <Text strong>{order.orderNumber}</Text>
+                          <Tag color={order.status === 'preparing' ? 'orange' : order.status === 'ready' ? 'cyan' : 'blue'}>
+                            {order.status.replace(/_/g, ' ').toUpperCase()}
+                          </Tag>
+                        </Space>
+                        <Text type="secondary">
+                          {order.room?.roomNumber ? `Room ${order.room.roomNumber}` : order.tableNumber || 'N/A'} · {order.items?.length || 0} items
+                        </Text>
+                        <Steps
+                          current={currentStep >= 0 ? currentStep : 0}
+                          size="small"
+                          items={workflow.map((label) => ({ title: label }))}
+                        />
+                      </Space>
+                    </List.Item>
+                  );
+                }}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: 24 }}>
+                <Text type="secondary">No pending room service orders</Text>
+              </div>
+            )}
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card title="Internal Orders" extra={<ShoppingCartOutlined />}>
-            <List
-              dataSource={[
-                { dept: 'Spa', need: 'Essential oils restock', status: 'Approved' },
-                { dept: 'Banquets', need: 'AV equipment check', status: 'Awaiting IMS' },
-                { dept: 'Housekeeping', need: 'Night shift trolley prep', status: 'Fulfilled' },
-              ]}
-              renderItem={(entry) => (
-                <List.Item>
-                  <List.Item.Meta
-                    title={entry.dept}
-                    description={<Text type="secondary">{entry.need}</Text>}
-                  />
-                  <Tag color={entry.status === 'Approved' ? 'blue' : entry.status === 'Fulfilled' ? 'green' : 'gold'}>
-                    {entry.status}
-                  </Tag>
-                </List.Item>
-              )}
-            />
+          <Card title="Internal Requisitions" extra={<ShoppingCartOutlined />}>
+            {internalOrders.length > 0 ? (
+              <List
+                dataSource={internalOrders}
+                renderItem={(order) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={order.specialInstructions || 'Internal Requisition'}
+                      description={<Text type="secondary">{order.items?.length || 0} items · {order.orderNumber}</Text>}
+                    />
+                    <Tag color={order.status === 'confirmed' ? 'blue' : order.status === 'completed' ? 'green' : 'gold'}>
+                      {order.status.replace(/_/g, ' ').toUpperCase()}
+                    </Tag>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: 24 }}>
+                <Text type="secondary">No pending internal requisitions</Text>
+              </div>
+            )}
           </Card>
         </Col>
       </Row>

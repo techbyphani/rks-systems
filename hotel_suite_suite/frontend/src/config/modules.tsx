@@ -50,7 +50,7 @@ export const MODULES: ModuleDefinition[] = [
     description: 'Manage guest reservations, inquiries, and channel performance.',
     icon: <BookOutlined />,
     path: '/suite/crs',
-    accent: '#1677ff',
+    accent: '#1e88e5',
     subMenu: [
       { key: 'crs-dashboard', label: 'Dashboard', path: '/suite/crs', icon: <BookOutlined /> },
       { key: 'crs-guests', label: 'Guests', path: '/suite/crs/guests', icon: <UserOutlined /> },
@@ -111,7 +111,7 @@ export const MODULES: ModuleDefinition[] = [
     description: 'Coordinate vendors, deliveries, and procurement schedules.',
     icon: <TruckOutlined />,
     path: '/suite/sms',
-    accent: '#722ed1',
+    accent: '#2a5298',
     subMenu: [
       { key: 'sms-dashboard', label: 'Dashboard', path: '/suite/sms', icon: <TruckOutlined /> },
       { key: 'sms-vendors', label: 'Vendors', path: '/suite/sms/vendors', icon: <ShopOutlined /> },

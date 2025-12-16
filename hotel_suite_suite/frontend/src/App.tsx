@@ -31,13 +31,13 @@ import { GuestsPage, GuestDetailPage, ReservationsPage, ReservationDetailPage, C
 import { RoomsPage, RoomDetailPage, RoomTypesPage, HousekeepingPage, MaintenancePage } from '@/modules/rms/pages'
 
 // BMS Module Pages
-import { FoliosPage, FolioDetailPage, PaymentsPage, InvoicesPage } from '@/modules/bms/pages'
+import { FoliosPage, FolioDetailPage, PaymentsPage, InvoicesPage, InvoiceDetailPage } from '@/modules/bms/pages'
 
 // OMS Module Pages
 import { OrdersPage, MenuPage } from '@/modules/oms/pages'
 
 // IMS Module Pages
-import { ItemsPage } from '@/modules/ims/pages'
+import { ItemsPage, CategoriesPage, VendorsPage as IMSVendorsPage, StockMovementsPage } from '@/modules/ims/pages'
 
 // SMS Module Pages
 import { VendorsPage, PurchaseOrdersPage } from '@/modules/sms/pages'
@@ -63,8 +63,25 @@ function App() {
       <ConfigProvider
         theme={{
           token: {
-            colorPrimary: '#1890ff',
-            borderRadius: 6,
+            colorPrimary: '#1e88e5',
+            colorInfo: '#1e88e5',
+            borderRadius: 8,
+            colorSuccess: '#52c41a',
+            colorWarning: '#faad14',
+            colorError: '#ff4d4f',
+          },
+          components: {
+            Menu: {
+              itemSelectedBg: 'rgba(30, 136, 229, 0.3)',
+              itemSelectedColor: '#fff',
+              itemHoverBg: 'rgba(255, 255, 255, 0.1)',
+              itemHoverColor: '#fff',
+              subMenuItemBg: 'transparent',
+              darkItemSelectedBg: 'rgba(30, 136, 229, 0.4)',
+              darkItemSelectedColor: '#fff',
+              darkItemHoverBg: 'rgba(255, 255, 255, 0.12)',
+              darkSubMenuItemBg: 'transparent',
+            },
           },
         }}
       >
@@ -127,9 +144,9 @@ function App() {
                         <Routes>
                           <Route index element={<IMSDashboard />} />
                           <Route path="items" element={<ItemsPage />} />
-                          <Route path="items/:id" element={<ItemsPage />} />
-                          <Route path="categories" element={<IMSDashboard />} />
-                          <Route path="stock-alerts" element={<IMSDashboard />} />
+                          <Route path="categories" element={<CategoriesPage />} />
+                          <Route path="vendors" element={<IMSVendorsPage />} />
+                          <Route path="movements" element={<StockMovementsPage />} />
                         </Routes>
                       </ProtectedRoute>
                     }
@@ -179,6 +196,7 @@ function App() {
                           <Route path="folios/:id" element={<FolioDetailPage />} />
                           <Route path="payments" element={<PaymentsPage />} />
                           <Route path="invoices" element={<InvoicesPage />} />
+                          <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                         </Routes>
                       </ProtectedRoute>
                     }

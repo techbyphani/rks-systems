@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons';
 import { PageHeader, StatusTag } from '@/components/shared';
 import { roomService, reservationService } from '@/api';
+import { useAppContext } from '@/context/AppContext';
 import type { Room, RoomStatus, Reservation } from '@/types';
 
 const { Text, Title } = Typography;
@@ -47,6 +48,7 @@ const STATUS_OPTIONS: { label: string; value: RoomStatus; color: string }[] = [
 export default function RoomDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { tenant } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [room, setRoom] = useState<Room | null>(null);
   const [currentReservation, setCurrentReservation] = useState<Reservation | null>(null);
@@ -54,19 +56,20 @@ export default function RoomDetailPage() {
   const [newStatus, setNewStatus] = useState<RoomStatus | null>(null);
 
   useEffect(() => {
-    if (id) {
+    if (id && tenant?.id) {
       loadRoom();
     }
-  }, [id]);
+  }, [id, tenant?.id]);
 
   const loadRoom = async () => {
+    if (!tenant?.id) return;
     setLoading(true);
     try {
-      const data = await roomService.getById(id!);
+      const data = await roomService.getById(tenant.id, id!);
       setRoom(data);
       
       if (data?.currentReservationId) {
-        const reservation = await reservationService.getById(data.currentReservationId);
+        const reservation = await reservationService.getById(tenant.id, data.currentReservationId);
         setCurrentReservation(reservation);
       }
     } catch (error) {
@@ -77,10 +80,10 @@ export default function RoomDetailPage() {
   };
 
   const handleStatusChange = async () => {
-    if (!newStatus || !room) return;
+    if (!newStatus || !room || !tenant?.id) return;
     
     try {
-      await roomService.updateStatus(room.id, newStatus);
+      await roomService.updateStatus(tenant.id, room.id, newStatus);
       message.success('Room status updated');
       setStatusModalOpen(false);
       loadRoom();

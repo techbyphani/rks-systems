@@ -140,7 +140,16 @@ function HotelLoginPage({ slug }: { slug: string }) {
   if (loading) {
     return (
       <LoginWrapper>
-        <Card style={{ width: 480, textAlign: 'center', padding: 40 }}>
+        <Card 
+          style={{ 
+            width: 480, 
+            textAlign: 'center', 
+            padding: 40,
+            borderRadius: 12,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            border: 'none',
+          }}
+        >
           <Spin size="large" />
           <div style={{ marginTop: 16 }}>
             <Text type="secondary">Loading hotel...</Text>
@@ -153,7 +162,14 @@ function HotelLoginPage({ slug }: { slug: string }) {
   if (error || !tenant) {
     return (
       <LoginWrapper>
-        <Card style={{ width: 480 }}>
+        <Card 
+          style={{ 
+            width: 480,
+            borderRadius: 12,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            border: 'none',
+          }}
+        >
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <Title level={4} type="danger">Unable to Load</Title>
             <Paragraph type="secondary">{error}</Paragraph>
@@ -163,6 +179,13 @@ function HotelLoginPage({ slug }: { slug: string }) {
             block 
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate('/login')}
+            style={{
+              height: 44,
+              fontSize: 16,
+              fontWeight: 500,
+              backgroundColor: '#1e88e5',
+              borderColor: '#1e88e5',
+            }}
           >
             Back to Hotel Finder
           </Button>
@@ -173,7 +196,14 @@ function HotelLoginPage({ slug }: { slug: string }) {
 
   return (
     <LoginWrapper brandColor={tenant.primaryColor}>
-      <Card style={{ width: 520 }}>
+      <Card 
+        style={{ 
+          width: 520,
+          borderRadius: 12,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          border: 'none',
+        }}
+      >
         {/* Hotel Branding */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           {tenant.logo ? (
@@ -186,16 +216,17 @@ function HotelLoginPage({ slug }: { slug: string }) {
             <Avatar 
               size={72} 
               style={{ 
-                backgroundColor: tenant.primaryColor || '#1890ff',
+                backgroundColor: tenant.primaryColor || '#1e88e5',
                 fontSize: 28,
                 marginBottom: 16,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               }}
             >
               {tenant.name.charAt(0)}
             </Avatar>
           )}
-          <Title level={3} style={{ margin: 0 }}>{tenant.name}</Title>
-          <Text type="secondary">{tenant.region}</Text>
+          <Title level={3} style={{ margin: 0, color: '#1e3c72' }}>{tenant.name}</Title>
+          <Text type="secondary" style={{ fontSize: 14 }}>{tenant.region}</Text>
         </div>
 
         <Divider style={{ margin: '16px 0' }}>
@@ -322,8 +353,12 @@ function HotelLoginPage({ slug }: { slug: string }) {
               size="large"
               loading={submitting}
               style={{ 
-                backgroundColor: tenant.primaryColor || undefined,
-                borderColor: tenant.primaryColor || undefined,
+                backgroundColor: tenant.primaryColor || '#1e88e5',
+                borderColor: tenant.primaryColor || '#1e88e5',
+                height: 44,
+                fontSize: 16,
+                fontWeight: 500,
+                boxShadow: '0 2px 8px rgba(30, 136, 229, 0.3)',
               }}
             >
               Sign In
@@ -331,7 +366,11 @@ function HotelLoginPage({ slug }: { slug: string }) {
           </Form.Item>
 
           <div style={{ textAlign: 'center' }}>
-            <Button type="link" size="small">
+            <Button 
+              type="link" 
+              size="small"
+              style={{ color: '#1e88e5' }}
+            >
               Forgot password?
             </Button>
           </div>
@@ -344,7 +383,11 @@ function HotelLoginPage({ slug }: { slug: string }) {
           type="link" 
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/login')}
-          style={{ color: 'rgba(255,255,255,0.8)' }}
+          style={{ 
+            color: 'rgba(255,255,255,0.95)',
+            fontWeight: 500,
+            textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+          }}
         >
           Not your hotel? Find yours
         </Button>
@@ -406,24 +449,32 @@ function HotelFinderPage() {
 
   return (
     <LoginWrapper>
-      <Card style={{ width: 520 }}>
+      <Card 
+        style={{ 
+          width: 520,
+          borderRadius: 12,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          border: 'none',
+        }}
+      >
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div
             style={{
               width: 72,
               height: 72,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e88e5 100%)',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               marginBottom: 16,
               fontSize: 32,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
             }}
           >
             🏨
           </div>
-          <Title level={3} style={{ marginBottom: 4 }}>Hotel Suite</Title>
+          <Title level={3} style={{ marginBottom: 4, color: '#1e3c72' }}>Hotel Suite</Title>
           <Text type="secondary">Find your hotel to sign in</Text>
         </div>
 
@@ -453,18 +504,26 @@ function HotelFinderPage() {
                   size="small"
                   hoverable
                   onClick={() => navigate(`/login/${hotel.slug}`)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ 
+                    cursor: 'pointer',
+                    borderRadius: 8,
+                    transition: 'all 0.3s ease',
+                  }}
+                  bodyStyle={{ padding: '12px 16px' }}
                 >
                   <Space style={{ width: '100%', justifyContent: 'space-between' }}>
                     <Space>
                       <Avatar 
                         size={40}
-                        style={{ backgroundColor: hotel.primaryColor || '#1890ff' }}
+                        style={{ 
+                          backgroundColor: hotel.primaryColor || '#1e88e5',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        }}
                       >
                         {hotel.name.charAt(0)}
                       </Avatar>
                       <div>
-                        <Text strong>{hotel.name}</Text>
+                        <Text strong style={{ color: '#1e3c72' }}>{hotel.name}</Text>
                         <br />
                         <Text type="secondary" style={{ fontSize: 12 }}>
                           {hotel.region}
@@ -472,7 +531,7 @@ function HotelFinderPage() {
                       </div>
                     </Space>
                     {hotel.status === 'trial' && (
-                      <Tag color="blue">Trial</Tag>
+                      <Tag color="#1e88e5" style={{ borderRadius: 4 }}>Trial</Tag>
                     )}
                   </Space>
                 </Card>
@@ -488,7 +547,7 @@ function HotelFinderPage() {
           <Button 
             type="link" 
             onClick={() => navigate('/operator/login')}
-            style={{ color: '#722ed1' }}
+            style={{ color: '#1e88e5', fontWeight: 500 }}
           >
             Operator Admin Panel →
           </Button>
@@ -501,6 +560,12 @@ function HotelFinderPage() {
 // ============================================================
 // WRAPPER COMPONENT
 // ============================================================
+
+// Consistent professional gradient for all hotels
+function generateGradientFromBrand(brandColor?: string): string {
+  // Use the same professional blue gradient for all hotels
+  return 'linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e88e5 100%)';
+}
 
 function LoginWrapper({ 
   children, 
@@ -518,12 +583,25 @@ function LoginWrapper({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        background: brandColor 
-          ? `linear-gradient(135deg, ${brandColor}dd 0%, ${brandColor}99 100%)`
-          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: generateGradientFromBrand(brandColor),
+        position: 'relative',
       }}
     >
-      {children}
+      {/* Subtle overlay pattern */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)',
+          pointerEvents: 'none',
+        }}
+      />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        {children}
+      </div>
     </div>
   );
 }

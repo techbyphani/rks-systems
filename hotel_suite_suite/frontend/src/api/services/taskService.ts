@@ -1,5 +1,5 @@
 import type { Task, TaskStatus, TaskPriority, TaskCategory, Department, PaginatedResponse } from '@/types';
-import { mockTasks, getTasksByStatus, getTodaysTasks, getOverdueTasks } from '../mockData';
+import { mockTasks } from '../mockData';
 import { mockEmployees } from '../mockData/employees';
 import { delay, generateId, now, paginate } from '../helpers';
 
@@ -199,7 +199,7 @@ export const taskService = {
    */
   async getTodays(): Promise<Task[]> {
     await delay(200);
-    return getTodaysTasks();
+    return tasks.filter(t => t.dueDate === today && t.status !== 'completed');
   },
 
   /**
@@ -207,7 +207,10 @@ export const taskService = {
    */
   async getOverdue(): Promise<Task[]> {
     await delay(200);
-    return getOverdueTasks();
+    return tasks.filter(t => 
+      t.dueDate < today && 
+      !['completed', 'cancelled'].includes(t.status)
+    );
   },
 
   /**
@@ -215,7 +218,7 @@ export const taskService = {
    */
   async getByStatus(status: TaskStatus): Promise<Task[]> {
     await delay(200);
-    return getTasksByStatus(status);
+    return tasks.filter(t => t.status === status);
   },
 
   /**
@@ -228,16 +231,38 @@ export const taskService = {
     completed: number;
     overdue: number;
     todaysDue: number;
+    urgent: number;
+    completedToday: number;
+    onTrack: number;
   }> {
     await delay(200);
+    
+    const overdueTasks = tasks.filter(t => 
+      t.dueDate < today && 
+      !['completed', 'cancelled'].includes(t.status)
+    );
+    const todaysTasks = tasks.filter(t => t.dueDate === today && t.status !== 'completed');
+    const completedToday = tasks.filter(t => 
+      t.status === 'completed' && 
+      t.completedAt?.startsWith(today)
+    ).length;
+    
+    // Calculate on-track percentage (tasks not overdue / total active tasks)
+    const activeTasks = tasks.filter(t => !['completed', 'cancelled'].includes(t.status));
+    const onTrack = activeTasks.length > 0 
+      ? Math.round(((activeTasks.length - overdueTasks.length) / activeTasks.length) * 100)
+      : 100;
     
     return {
       total: tasks.length,
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       completed: tasks.filter(t => t.status === 'completed').length,
-      overdue: getOverdueTasks().length,
-      todaysDue: getTodaysTasks().length,
+      overdue: overdueTasks.length,
+      todaysDue: todaysTasks.length,
+      urgent: tasks.filter(t => t.priority === 'urgent' && !['completed', 'cancelled'].includes(t.status)).length,
+      completedToday,
+      onTrack,
     };
   },
 
@@ -246,7 +271,17 @@ export const taskService = {
    */
   async getMyTasks(): Promise<Task[]> {
     await delay(200);
-    // Return tasks assigned to current user (mock: first 10 tasks)
-    return tasks.filter(t => t.assignedTo).slice(0, 10);
+    // Return tasks assigned to current user (mock: EMP001)
+    return tasks.filter(t => t.assignedTo === 'EMP001');
+  },
+
+  /**
+   * Delete task
+   */
+  async delete(id: string): Promise<void> {
+    await delay(300);
+    const index = tasks.findIndex(t => t.id === id);
+    if (index === -1) throw new Error('Task not found');
+    tasks.splice(index, 1);
   },
 };

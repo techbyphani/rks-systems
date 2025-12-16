@@ -2,16 +2,18 @@
 
 :root {
   /* Colors - Primary Palette */
-  --color-primary: #1890ff;
-  --color-primary-hover: #40a9ff;
-  --color-primary-active: #096dd9;
-  --color-primary-light: #e6f7ff;
+  --color-primary: #1e88e5;
+  --color-primary-hover: #42a5f5;
+  --color-primary-active: #1565c0;
+  --color-primary-light: #e3f2fd;
+  --color-primary-dark: #1e3c72;
+  --color-primary-medium: #2a5298;
   
   /* Colors - Semantic */
   --color-success: #52c41a;
   --color-warning: #faad14;
   --color-error: #ff4d4f;
-  --color-info: #1890ff;
+  --color-info: #1e88e5;
   
   /* Colors - Neutral */
   --color-text-primary: rgba(0, 0, 0, 0.85);
@@ -21,10 +23,10 @@
   
   /* Colors - Background */
   --color-bg-primary: #ffffff;
-  --color-bg-secondary: #fafafa;
-  --color-bg-tertiary: #f0f0f0;
-  --color-bg-hover: rgba(0, 0, 0, 0.04);
-  --color-bg-active: rgba(0, 0, 0, 0.06);
+  --color-bg-secondary: #f8f9fa;
+  --color-bg-tertiary: #f0f2f5;
+  --color-bg-hover: rgba(30, 136, 229, 0.08);
+  --color-bg-active: rgba(30, 136, 229, 0.12);
   
   /* Colors - Border */
   --color-border: #d9d9d9;

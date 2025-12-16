@@ -93,6 +93,7 @@ relevantReservations.forEach((reservation, index) => {
     
     payments.push({
       id: `PAY${folioId}-1`,
+      tenantId: 'tenant-001', // CRITICAL: Tenant isolation
       receiptNumber: `RCP-${today.replace(/-/g, '')}-${String(index + 1).padStart(4, '0')}`,
       folioId,
       amount: totalCharges,
@@ -116,6 +117,7 @@ relevantReservations.forEach((reservation, index) => {
       const depositAmount = reservation.depositAmount || reservation.roomRate;
       payments.push({
         id: `PAY${folioId}-1`,
+        tenantId: 'tenant-001', // CRITICAL: Tenant isolation
         receiptNumber: `RCP-${today.replace(/-/g, '')}-${String(index + 100).padStart(4, '0')}`,
         folioId,
         amount: depositAmount,
@@ -137,6 +139,7 @@ relevantReservations.forEach((reservation, index) => {
   
   mockFolios.push({
     id: folioId,
+    tenantId: 'tenant-001', // CRITICAL: Tenant isolation
     folioNumber: `FOL-${reservation.confirmationNumber}`,
     reservationId: reservation.id,
     reservation,
@@ -159,6 +162,7 @@ relevantReservations.forEach((reservation, index) => {
   if (reservation.status === 'checked_out' && Math.random() > 0.5) {
     mockInvoices.push({
       id: `INV${String(mockInvoices.length + 1).padStart(5, '0')}`,
+      tenantId: 'tenant-001', // CRITICAL: Tenant isolation
       invoiceNumber: `INV-${today.replace(/-/g, '').slice(0, 6)}-${String(mockInvoices.length + 1).padStart(4, '0')}`,
       folioId,
       guestId: reservation.guestId,

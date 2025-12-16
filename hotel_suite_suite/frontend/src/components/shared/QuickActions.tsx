@@ -30,6 +30,7 @@ import {
 import dayjs from 'dayjs';
 import { guestService, roomService, workflowService } from '@/api';
 import { useNotifications } from '@/context/NotificationContext';
+import { useAppContext } from '@/context/AppContext';
 import type { Guest, RoomType, Room } from '@/types';
 
 interface QuickActionsProps {
@@ -39,6 +40,7 @@ interface QuickActionsProps {
 export default function QuickActions({ variant = 'dropdown' }: QuickActionsProps) {
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
+  const { tenant } = useAppContext();
 
   // Modal states
   const [quickBookingOpen, setQuickBookingOpen] = useState(false);
@@ -69,7 +71,8 @@ export default function QuickActions({ variant = 'dropdown' }: QuickActionsProps
     if (value.length < 2) return;
     setSearchLoading(true);
     try {
-      const results = await guestService.search(value);
+      if (!tenant?.id) return;
+      const results = await guestService.search(tenant.id, value);
       setGuests(results);
     } catch (error) {
       console.error('Failed to search guests');
@@ -79,8 +82,9 @@ export default function QuickActions({ variant = 'dropdown' }: QuickActionsProps
   };
 
   const handleRoomTypeChange = async (roomTypeId: string) => {
+    if (!tenant?.id) return;
     try {
-      const rooms = await roomService.getAvailableRooms(roomTypeId);
+      const rooms = await roomService.getAvailableRooms(tenant.id, roomTypeId);
       setAvailableRooms(rooms);
     } catch (error) {
       console.error('Failed to load rooms');
@@ -90,7 +94,12 @@ export default function QuickActions({ variant = 'dropdown' }: QuickActionsProps
   const handleQuickBooking = async (values: any) => {
     setLoading(true);
     try {
-      const result = await workflowService.quickBooking({
+      if (!tenant?.id) {
+        message.error('Tenant context not available');
+        return;
+      }
+      
+      const result = await workflowService.quickBooking(tenant.id, {
         guestId: values.guestId,
         roomTypeId: values.roomTypeId,
         checkInDate: values.dates[0].format('YYYY-MM-DD'),
@@ -125,7 +134,12 @@ export default function QuickActions({ variant = 'dropdown' }: QuickActionsProps
   const handleWalkIn = async (values: any) => {
     setLoading(true);
     try {
-      const result = await workflowService.walkInCheckIn({
+      if (!tenant?.id) {
+        message.error('Tenant context not available');
+        return;
+      }
+      
+      const result = await workflowService.walkInCheckIn(tenant.id, {
         guestId: values.guestId,
         roomId: values.roomId,
         nights: values.nights,

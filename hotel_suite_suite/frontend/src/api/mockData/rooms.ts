@@ -42,6 +42,7 @@ const generateRooms = (): Room[] => {
       
       rooms.push({
         id: `RM${roomNumber}`,
+        tenantId: 'tenant-001', // CRITICAL: Tenant isolation
         roomNumber,
         roomTypeId,
         roomType,
@@ -67,7 +68,8 @@ const generateRooms = (): Room[] => {
 export const mockRooms: Room[] = generateRooms();
 
 // Helper to get room counts by status
-export const getRoomStatusCounts = () => {
+export const getRoomStatusCounts = (rooms?: typeof mockRooms) => {
+  const roomsToCount = rooms || mockRooms;
   const counts: Record<RoomStatus, number> = {
     available: 0,
     occupied: 0,
@@ -79,7 +81,7 @@ export const getRoomStatusCounts = () => {
     out_of_service: 0,
   };
   
-  mockRooms.forEach(room => {
+  roomsToCount.forEach(room => {
     counts[room.status]++;
   });
   

@@ -49,6 +49,9 @@ export {
   getPaymentMethodBreakdown,
 } from './billing';
 
+// Purchases - Purchase Orders
+export { mockPurchaseOrders } from './purchases';
+
 // Tenants & Tenant Users (Multi-tenant)
 export {
   mockTenants,

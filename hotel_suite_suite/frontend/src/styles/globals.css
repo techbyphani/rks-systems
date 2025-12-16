@@ -23,3 +23,22 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* Sidebar Menu Custom Styles - Minimal overrides for gradient background */
+.ant-layout-sider .ant-menu-dark {
+  background: transparent !important;
+}
+
+/* Remove the default left border indicator for selected items */
+.ant-layout-sider .ant-menu-dark .ant-menu-item::after {
+  display: none !important;
+}
+
+/* Ensure submenu items have transparent background (Ant Design default is dark) */
+.ant-layout-sider .ant-menu-dark .ant-menu-submenu .ant-menu {
+  background: transparent !important;
+}
+
+.ant-layout-sider .ant-menu-dark .ant-menu-submenu-inline .ant-menu {
+  background: transparent !important;
+}
