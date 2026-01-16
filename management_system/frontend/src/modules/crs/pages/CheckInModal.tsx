@@ -27,7 +27,7 @@ export default function CheckInModal({
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const { addNotification } = useNotifications();
-  const { tenant } = useAppContext();
+  const { tenant, user } = useAppContext();
 
   const handleCheckIn = async () => {
     try {
@@ -41,10 +41,13 @@ export default function CheckInModal({
       
       // Use workflow service for integrated check-in
       // This will: 1) Check-in reservation, 2) Assign room, 3) Create folio
+      // HARDENING: Pass performedBy (user ID or 'system' fallback)
+      const performedBy = user?.id || 'system';
       const result = await workflowService.performCheckIn(
         tenant.id,
         reservation.id,
         values.roomId,
+        performedBy,
         values.notes
       );
       

@@ -26,7 +26,7 @@ export default function CheckOutModal({
   const [folio, setFolio] = useState<Folio | null>(null);
   const [folioLoading, setFolioLoading] = useState(false);
   const { addNotification } = useNotifications();
-  const { tenant } = useAppContext();
+  const { tenant, user } = useAppContext();
 
   useEffect(() => {
     if (open && reservation.folioId) {
@@ -67,7 +67,9 @@ export default function CheckOutModal({
       
       // Use workflow service for integrated check-out
       // This will: 1) Check-out reservation, 2) Release room, 3) Close folio
-      const result = await workflowService.performCheckOut(tenant.id, reservation.id);
+      // HARDENING: Pass performedBy (user ID or 'system' fallback)
+      const performedBy = user?.id || 'system';
+      const result = await workflowService.performCheckOut(tenant.id, reservation.id, performedBy);
       
       message.success(`Guest checked out from Room ${result.room?.roomNumber}`);
       
